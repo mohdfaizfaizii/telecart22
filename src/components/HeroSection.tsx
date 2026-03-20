@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
 import Autoplay from 'embla-carousel-autoplay';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface HeroBanner {
   id: string;
@@ -27,6 +28,9 @@ const BannerSlide = ({ banner }: { banner: HeroBanner }) => (
 
 const HeroSection = () => {
   const [banners, setBanners] = useState<HeroBanner[]>([]);
+  const [api, setApi] = useState<CarouselApi>();
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -39,6 +43,23 @@ const HeroSection = () => {
     };
     fetchBanners();
   }, []);
+
+  useEffect(() => {
+    if (!api) return;
+
+    const updateButtons = () => {
+      setCanScrollPrev(api.canScrollPrev());
+      setCanScrollNext(api.canScrollNext());
+    };
+
+    updateButtons();
+    api.on('select', updateButtons);
+    api.on('reInit', updateButtons);
+
+    return () => {
+      api.off('select', updateButtons);
+    };
+  }, [api]);
 
   if (!banners || banners.length === 0) {
     return null;
@@ -58,6 +79,7 @@ const HeroSection = () => {
         opts={{ loop: true, align: 'start' }}
         plugins={[Autoplay({ delay: 4000, stopOnInteraction: true })]}
         className="w-full"
+        setApi={setApi}
       >
         <CarouselContent>
           {banners.map((banner) => (
@@ -66,8 +88,26 @@ const HeroSection = () => {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="left-0 h-24 w-14 translate-y-[-50%] rounded-r-xl border-0 bg-white/35 text-slate-700 shadow-none backdrop-blur-sm hover:bg-white/50 hover:text-slate-900" />
-        <CarouselNext className="right-0 h-24 w-14 translate-y-[-50%] rounded-l-xl border-0 bg-white/35 text-slate-700 shadow-none backdrop-blur-sm hover:bg-white/50 hover:text-slate-900" />
+        {canScrollPrev && (
+          <button
+            type="button"
+            onClick={() => api?.scrollPrev()}
+            className="absolute left-4 top-1/2 z-10 -translate-y-1/2 p-0 text-white"
+            aria-label="Previous slide"
+          >
+            <ChevronLeft className="h-8 w-8 stroke-[2.5]" />
+          </button>
+        )}
+        {canScrollNext && (
+          <button
+            type="button"
+            onClick={() => api?.scrollNext()}
+            className="absolute right-4 top-1/2 z-10 -translate-y-1/2 p-0 text-white"
+            aria-label="Next slide"
+          >
+            <ChevronRight className="h-8 w-8 stroke-[2.5]" />
+          </button>
+        )}
       </Carousel>
     </section>
   );

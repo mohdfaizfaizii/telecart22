@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
 import Autoplay from 'embla-carousel-autoplay';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface SectionAd {
   id: string;
@@ -36,6 +37,71 @@ const AdImage = ({ ad }: { ad: SectionAd }) => {
   );
 };
 
+const ResponsiveAdsCarousel = ({ adList, gridCols }: { adList: SectionAd[]; gridCols: number }) => {
+  const [api, setApi] = useState<CarouselApi>();
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
+
+  useEffect(() => {
+    if (!api) return;
+
+    const updateButtons = () => {
+      setCanScrollPrev(api.canScrollPrev());
+      setCanScrollNext(api.canScrollNext());
+    };
+
+    updateButtons();
+    api.on('select', updateButtons);
+    api.on('reInit', updateButtons);
+
+    return () => {
+      api.off('select', updateButtons);
+    };
+  }, [api]);
+
+  return (
+    <Carousel
+      opts={{ loop: true, align: 'start' }}
+      plugins={[Autoplay({ delay: 5000, stopOnInteraction: true })]}
+      className="w-full"
+      setApi={setApi}
+    >
+      <CarouselContent>
+        {adList.map((ad) => (
+          <CarouselItem
+            key={ad.id}
+            className={gridCols === 3 ? 'basis-1/2 sm:basis-1/2 lg:basis-1/3' : 'basis-full sm:basis-1/2'}
+          >
+            <AdImage ad={ad} />
+          </CarouselItem>
+        ))}
+      </CarouselContent>
+
+      {canScrollPrev && (
+        <button
+          type="button"
+          onClick={() => api?.scrollPrev()}
+          className="absolute left-3 top-1/2 z-10 -translate-y-1/2 p-0 text-[#0f766e]"
+          aria-label="Previous slide"
+        >
+          <ChevronLeft className="h-6 w-6 stroke-[2.5]" />
+        </button>
+      )}
+
+      {canScrollNext && (
+        <button
+          type="button"
+          onClick={() => api?.scrollNext()}
+          className="absolute right-3 top-1/2 z-10 -translate-y-1/2 p-0 text-[#0f766e]"
+          aria-label="Next slide"
+        >
+          <ChevronRight className="h-6 w-6 stroke-[2.5]" />
+        </button>
+      )}
+    </Carousel>
+  );
+};
+
 const SectionAds = ({ categoryId, adType }: SectionAdsProps) => {
   const [ads, setAds] = useState<SectionAd[]>([]);
 
@@ -62,10 +128,9 @@ const SectionAds = ({ categoryId, adType }: SectionAdsProps) => {
   const showTwo = !adType || adType === 'ad-2-grid';
 
   const renderAdsWithSlider = (adList: SectionAd[], gridCols: number) => {
-    const perSlide = gridCols;
-    if (adList.length <= perSlide) {
+    if (adList.length === 1) {
       return (
-        <div className={`grid grid-cols-1 ${gridCols === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-4`}>
+        <div className="grid grid-cols-1 gap-4">
           {adList.map((ad) => (
             <AdImage key={ad.id} ad={ad} />
           ))}
@@ -73,38 +138,7 @@ const SectionAds = ({ categoryId, adType }: SectionAdsProps) => {
       );
     }
 
-    // Make slides full by wrapping from the start when the list doesn't divide evenly.
-    const remainder = adList.length % perSlide;
-    const normalizedAds = remainder === 0
-      ? adList
-      : [...adList, ...adList.slice(0, perSlide - remainder)];
-
-    const slides: SectionAd[][] = [];
-    for (let i = 0; i < normalizedAds.length; i += perSlide) {
-      slides.push(normalizedAds.slice(i, i + perSlide));
-    }
-
-    return (
-      <Carousel
-        opts={{ loop: true, align: 'start' }}
-        plugins={[Autoplay({ delay: 5000, stopOnInteraction: true })]}
-        className="w-full"
-      >
-        <CarouselContent>
-          {slides.map((slide, idx) => (
-            <CarouselItem key={idx} className="basis-full">
-              <div className={`grid grid-cols-1 ${gridCols === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-4`}>
-                {slide.map((ad) => (
-                  <AdImage key={ad.id} ad={ad} />
-                ))}
-              </div>
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-        <CarouselPrevious className="left-2 bg-white/80 hover:bg-white border-0 shadow-lg" />
-        <CarouselNext className="right-2 bg-white/80 hover:bg-white border-0 shadow-lg" />
-      </Carousel>
-    );
+    return <ResponsiveAdsCarousel adList={adList} gridCols={gridCols} />;
   };
 
   return (
