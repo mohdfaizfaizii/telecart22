@@ -53,13 +53,16 @@ const CategorySection = ({ categoryName, categoryId, products, showInlineAds = t
   const displayed = products.slice(0, 4);
 
   return (
-    <section className="py-10 bg-muted/50 w-full">
+    <section
+      className="w-full py-10"
+      style={{ backgroundImage: 'var(--gradient-background)', backgroundAttachment: 'fixed' }}
+    >
       <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Ads */}
         {showInlineAds && <SectionAds categoryId={categoryId} />}
 
         {/* Cards section without white container */}
-        <div className="mt-6">
+        <div className="mt-6 rounded-3xl px-0 py-1">
           {/* Header */}
           <div className="mb-6 flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">

@@ -59,14 +59,17 @@ const FAQSection = () => {
   const faqs = activeTab === 'buyers' ? buyerFaqs : sellerFaqs;
 
   return (
-    <section className="bg-transparent py-20">
+    <section
+      className="py-20"
+      style={{ backgroundImage: 'var(--gradient-background)', backgroundAttachment: 'fixed' }}
+    >
       <div className="container mx-auto px-6 md:px-8">
         <h2 className="mb-8 text-center text-3xl font-bold">
           Frequently Asked Questions
         </h2>
 
         <div className="mb-12 flex justify-center">
-          <div className="flex rounded-full border border-white/50 bg-white/60 p-1 backdrop-blur-sm">
+          <div className="flex rounded-full bg-gray-200 p-1">
 
             {/* Buyers Tab */}
             <Button
@@ -75,7 +78,7 @@ const FAQSection = () => {
               className={`rounded-full px-6 transition-all ${
                 activeTab === 'buyers'
                   ? 'bg-black text-white hover:bg-black'
-                  : 'bg-transparent text-gray-700 hover:bg-white/70'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
               For Buyers
@@ -88,7 +91,7 @@ const FAQSection = () => {
               className={`rounded-full px-6 transition-all ${
                 activeTab === 'sellers'
                   ? 'bg-black text-white hover:bg-black'
-                  : 'bg-transparent text-gray-700 hover:bg-white/70'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
               For Sellers
@@ -97,7 +100,7 @@ const FAQSection = () => {
           </div>
         </div>
 
-        <div className="mx-auto max-w-4xl rounded-2xl border border-white/50 bg-white/72 px-6 py-6 shadow-[0_12px_32px_rgba(15,23,42,0.08)] backdrop-blur-sm md:px-8 md:py-8">
+        <div className="mx-auto max-w-4xl rounded-2xl bg-white px-6 py-6 shadow-sm md:px-8 md:py-8">
           <Accordion type="single" collapsible>
             {faqs.map((faq, i) => (
               <AccordionItem key={i} value={`faq-${i}`}>

@@ -159,14 +159,17 @@ const Software = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#E6F2FF]">
+    <div className="min-h-screen bg-transparent">
       <Header />
       <div className="container mx-auto px-4 py-8">
         <h1 className="mb-6 text-3xl font-bold font-[Plus_Jakarta_Sans]">Browse Software</h1>
 
-        <div className="rounded-2xl border border-border bg-[#E6F2FF] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+        <div
+          className="rounded-2xl border border-white/60 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] sm:p-5"
+          style={{ backgroundImage: 'var(--gradient-background)' }}
+        >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-2">
-            <div className="relative min-w-0 w-96">
+            <div className="relative min-w-0 w-full lg:w-96">
               <Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
@@ -176,9 +179,9 @@ const Software = () => {
               />
             </div>
 
-            <div className="flex shrink-0 gap-2">
+            <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="h-11 w-full rounded-xl border-border text-xs uppercase">
+                <SelectTrigger className="h-11 w-full rounded-xl border-border bg-white text-xs uppercase">
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -190,7 +193,7 @@ const Software = () => {
               </Select>
 
               <Select value={selectedSubcategory} onValueChange={setSelectedSubcategory}>
-                <SelectTrigger className="h-11 w-full rounded-xl border-border text-xs uppercase">
+                <SelectTrigger className="h-11 w-full rounded-xl border-border bg-white text-xs uppercase">
                   <SelectValue placeholder="Subcategory" />
                 </SelectTrigger>
                 <SelectContent>
@@ -204,7 +207,7 @@ const Software = () => {
               </Select>
 
               <Select value={selectedPrice} onValueChange={setSelectedPrice}>
-                <SelectTrigger className="h-11 w-32 rounded-xl border-border text-xs uppercase">
+                <SelectTrigger className="h-11 w-full rounded-xl border-border bg-white text-xs uppercase">
                   <SelectValue placeholder="Price" />
                 </SelectTrigger>
                 <SelectContent>
@@ -219,7 +222,7 @@ const Software = () => {
               <button
                 type="button"
                 onClick={clearFilters}
-                className="inline-flex items-center gap-2 text-sm font-medium text-foreground transition-colors hover:text-primary"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-medium text-foreground transition-colors hover:text-primary"
               >
                 <X className="h-4 w-4" />
                 Clear
@@ -234,7 +237,10 @@ const Software = () => {
           ) : filtered.length === 0 ? (
             <p className="py-10 text-center text-muted-foreground">No software found.</p>
           ) : (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 bg-[#E6F2FF] p-5 rounded-2xl">
+            <div
+              className="grid gap-5 rounded-2xl border border-white/60 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 xl:grid-cols-4"
+              style={{ backgroundImage: 'var(--gradient-background)' }}
+            >
               {filtered.map((product) => <ProductCard key={product.id} {...product} />)}
             </div>
           )}

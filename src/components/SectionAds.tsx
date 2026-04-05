@@ -35,7 +35,7 @@ const AdImage = ({ ad }: { ad: SectionAd }) => {
   );
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/55 bg-white/78 shadow-sm backdrop-blur-sm">
+    <div className="overflow-hidden border border-border shadow-sm bg-white rounded-2xl">
       {ad.link_url ? (
         <a href={ad.link_url} target="_blank" rel="noopener noreferrer" className="block">
           {img}

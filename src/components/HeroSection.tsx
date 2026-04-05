@@ -16,21 +16,24 @@ const getHeroBannerKey = (banner: HeroBanner) =>
   `${banner.image_url}|${banner.title ?? ''}|${banner.subtitle ?? ''}|${banner.link_url ?? ''}`;
 
 const BannerSlide = ({ banner }: { banner: HeroBanner }) => (
-  <div className="relative w-full overflow-hidden bg-[#E6F2FF]">
+  <div
+    className="relative w-full overflow-hidden"
+    style={{ backgroundImage: 'var(--gradient-background)', backgroundAttachment: 'fixed' }}
+  >
     <div className="relative w-full">
       {banner.link_url ? (
         <a href={banner.link_url} target="_blank" rel="noopener noreferrer" className="block w-full">
           <img
             src={banner.image_url}
             alt={banner.title || 'Banner'}
-            className="block h-[220px] w-full object-cover sm:h-auto sm:object-contain"
+            className="block w-full h-auto"
           />
         </a>
       ) : (
         <img
           src={banner.image_url}
           alt={banner.title || 'Banner'}
-          className="block h-[220px] w-full object-cover sm:h-auto sm:object-contain"
+          className="block w-full h-auto"
         />
       )}
     </div>

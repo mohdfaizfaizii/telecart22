@@ -177,7 +177,7 @@ const ProductCard = ({
       {/* Main Card */}
       <div 
         onClick={handleCardClick}
-        className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/55 bg-white/78 shadow-[0_10px_30px_rgba(15,23,42,0.10)] backdrop-blur-sm transition-all duration-500 ease-out hover:-translate-y-2 hover:scale-[1.035] hover:shadow-[0_24px_60px_rgba(15,23,42,0.18)]"
+        className="group relative overflow-hidden rounded-2xl border border-border bg-white shadow-[0_10px_30px_rgba(15,23,42,0.10)] transition-all duration-500 ease-out hover:-translate-y-2 hover:scale-[1.035] hover:shadow-[0_24px_60px_rgba(15,23,42,0.18)] cursor-pointer"
       >
         {/* Header */}
         <div className="flex items-start gap-3 p-5 pb-3">

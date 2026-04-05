@@ -129,7 +129,11 @@ const Index = () => {
         case 'ad-2-grid': {
           if (!section.reference_id) return null;
           return (
-            <section key={section.id} className="py-4">
+            <section
+              key={section.id}
+              className="py-4"
+              style={{ backgroundImage: 'var(--gradient-background)', backgroundAttachment: 'fixed' }}
+            >
               <div className="container mx-auto px-4">
                 <SectionAds categoryId={section.reference_id} adType={section.section_type} />
               </div>
@@ -143,7 +147,10 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#E6F2FF]">
+    <div
+      className="min-h-screen"
+      style={{ backgroundImage: 'var(--gradient-background)' }}
+    >
       <Header />
       <main>
         <HeroSection />
