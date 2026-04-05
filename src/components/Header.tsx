@@ -64,7 +64,7 @@ const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white">
+    <header className="sticky top-0 z-50 w-full border-b border-white/40 bg-white/75 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4">
         <Link to="/" className="flex items-center">
           <div className="w-11 h-10 rounded-full bg-[#5f259f] flex items-center justify-center text-white font-bold text-2xl leading-none">
@@ -89,7 +89,7 @@ const Header = () => {
               </NavigationMenuTrigger>
               <NavigationMenuContent
                 onMouseLeave={() => setOpenMenu(null)}
-                className="p-0 bg-white rounded-xl shadow-2xl overflow-hidden"
+                className="overflow-hidden rounded-xl border border-white/50 bg-white/90 p-0 shadow-2xl backdrop-blur-xl"
               >
                 <div className="h-1 bg-[#6D28D9]" />
                 <div className="flex w-[760px]">
@@ -103,7 +103,7 @@ const Header = () => {
                           key={item.id}
                           to={`/software?category=${item.id}`}
                           onClick={handleCategoryClick}
-                          className="flex gap-3 p-3 rounded-lg hover:bg-gray-50"
+                          className="flex gap-3 rounded-lg p-3 hover:bg-white/70"
                         >
                           <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center font-bold text-primary">PG</div>
                           <div>
@@ -126,7 +126,7 @@ const Header = () => {
               </NavigationMenuTrigger>
               <NavigationMenuContent
                 onMouseLeave={() => setOpenMenu(null)}
-                className="p-0 bg-white rounded-xl shadow-2xl overflow-hidden"
+                className="overflow-hidden rounded-xl border border-white/50 bg-white/90 p-0 shadow-2xl backdrop-blur-xl"
               >
                 <div className="h-1 bg-[#6D28D9]" />
                 <div className="flex w-[760px]">
@@ -138,7 +138,7 @@ const Header = () => {
                       <Link
                         key={item.name}
                         to={item.href}
-                        className="flex gap-3 p-3 rounded-lg hover:bg-gray-50"
+                        className="flex gap-3 rounded-lg p-3 hover:bg-white/70"
                       >
                         <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center font-bold text-primary">S</div>
                         <div>
