@@ -421,6 +421,7 @@ export type Database = {
           pricing_unit: string | null
           pricing_value: number | null
           request_demo_link: string | null
+          show_free_trial: boolean | null
           show_pricing: boolean | null
           status: string | null
           sub_description: string | null
@@ -458,6 +459,7 @@ export type Database = {
           pricing_unit?: string | null
           pricing_value?: number | null
           request_demo_link?: string | null
+          show_free_trial?: boolean | null
           show_pricing?: boolean | null
           status?: string | null
           sub_description?: string | null
@@ -495,6 +497,7 @@ export type Database = {
           pricing_unit?: string | null
           pricing_value?: number | null
           request_demo_link?: string | null
+          show_free_trial?: boolean | null
           show_pricing?: boolean | null
           status?: string | null
           sub_description?: string | null

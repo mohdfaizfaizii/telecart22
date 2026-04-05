@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useProductSubscription } from '@/hooks/use-product-subscription';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductCard, { type ProductCardProps } from '@/components/ProductCard';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 type SoftwareCard = ProductCardProps & {
   categoryId?: string;
@@ -28,18 +28,9 @@ const Software = () => {
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('all');
   const [selectedPrice, setSelectedPrice] = useState<string>('any');
   const [search, setSearch] = useState('');
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    setSelectedSubcategory('all');
-  }, [selectedCategory]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     const [catsRes, subcatsRes, productsRes, featuresRes, integrationsRes, reviewsRes] = await Promise.all([
       supabase.from('categories').select('*').eq('is_visible', true).order('display_order'),
       supabase.from('subcategories').select('*').order('display_order'),
@@ -88,18 +79,12 @@ const Software = () => {
       companyName: product.company_name,
       subtitle: (product as any).subtitle,
       description: product.description,
-      subDescription: (product as any).sub_description,
       logoUrl: product.logo_url,
-      bestForMin: (product as any).best_for_min,
-      bestForMax: (product as any).best_for_max,
-      bestForUnit: (product as any).best_for_unit,
       pricingValue: (product as any).pricing_value,
       currency: (product as any).currency,
       pricingUnit: (product as any).pricing_unit,
       ctaText: (product as any).cta_text,
       ctaLink: (product as any).cta_link,
-      oldPrice: product.old_price,
-      newPrice: product.new_price,
       discountPercent: product.discount_percent,
       freeTrialLink: product.free_trial_link,
       freeTrialText: (product as any).free_trial_text,
@@ -117,15 +102,22 @@ const Software = () => {
       integrations: integrationMap[product.id] ?? [],
       priceOnRequest: (product as any).price_on_request ?? false,
       showPricing: (product as any).show_pricing ?? true,
+      showFreeTrial: (product as any).show_free_trial ?? true,
     })));
 
     setLoading(false);
-  };
+  }, []);
 
-  const visibleSubcategories = useMemo(() => {
-    if (selectedCategory === 'all') return subcategories;
-    return subcategories.filter((subcategory) => subcategory.category_id === selectedCategory);
-  }, [selectedCategory, subcategories]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Subscribe to real-time product changes
+  useProductSubscription(fetchData);
+
+  useEffect(() => {
+    setSelectedSubcategory('all');
+  }, [selectedCategory]);
 
   const filtered = useMemo(() => {
     return products.filter((product) => {
@@ -135,7 +127,6 @@ const Software = () => {
         product.description,
         product.subtitle,
         product.categoryLabel,
-        product.subcategoryLabel,
         ...(product.features ?? []),
         ...(product.integrations ?? []),
       ]
@@ -168,32 +159,63 @@ const Software = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#E6F2FF]">
       <Header />
       <div className="container mx-auto px-4 py-8">
         <h1 className="mb-6 text-3xl font-bold font-[Plus_Jakarta_Sans]">Browse Software</h1>
 
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-            <div className="relative min-w-0 flex-1">
+        <div className="rounded-2xl border border-border bg-[#E6F2FF] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-2">
+            <div className="relative min-w-0 w-96">
               <Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search software, features, categories, or subcategories..."
+                placeholder="Search software, features, or categories..."
                 className="h-11 rounded-xl border-border pl-14 text-base"
               />
             </div>
 
-            <div className="flex shrink-0 items-center gap-3 self-start lg:self-auto">
-              <Button
-                type="button"
-                onClick={() => setFiltersOpen((value) => !value)}
-                className={`h-11 rounded-xl px-5 ${filtersOpen ? 'bg-[#35bdb8] text-white hover:bg-[#2da9a5]' : 'border border-border bg-white text-black hover:bg-muted'}`}
-              >
-                <SlidersHorizontal className="mr-2 h-4 w-4" />
-                Filters
-              </Button>
+            <div className="flex shrink-0 gap-2">
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="h-11 w-full rounded-xl border-border text-xs uppercase">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedSubcategory} onValueChange={setSelectedSubcategory}>
+                <SelectTrigger className="h-11 w-full rounded-xl border-border text-xs uppercase">
+                  <SelectValue placeholder="Subcategory" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Subcategories</SelectItem>
+                  {subcategories
+                    .filter((sub) => selectedCategory === 'all' || sub.category_id === selectedCategory)
+                    .map((subcategory) => (
+                      <SelectItem key={subcategory.id} value={subcategory.id}>{subcategory.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedPrice} onValueChange={setSelectedPrice}>
+                <SelectTrigger className="h-11 w-32 rounded-xl border-border text-xs uppercase">
+                  <SelectValue placeholder="Price" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Price </SelectItem>
+                  <SelectItem value="under-1000">Under 1000</SelectItem>
+                  <SelectItem value="1000-5000">1000 to 5000</SelectItem>
+                  <SelectItem value="above-5000">Above 5000</SelectItem>
+                  <SelectItem value="on-request">Price on Request</SelectItem>
+                </SelectContent>
+              </Select>
+
               <button
                 type="button"
                 onClick={clearFilters}
@@ -204,65 +226,6 @@ const Software = () => {
               </button>
             </div>
           </div>
-
-          {filtersOpen && (
-            <div className="mt-4 border-t border-border pt-4">
-            <div className="grid gap-4 lg:grid-cols-4">
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">Category</p>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className={`h-11 rounded-xl ${selectedCategory !== 'all' ? 'text-[#16a34a]' : 'text-black'}`}>
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">Subcategory</p>
-                <Select value={selectedSubcategory} onValueChange={setSelectedSubcategory}>
-                  <SelectTrigger className={`h-11 rounded-xl ${selectedSubcategory !== 'all' ? 'text-[#16a34a]' : 'text-black'}`}>
-                    <SelectValue placeholder="All Subcategories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Subcategories</SelectItem>
-                    {visibleSubcategories.map((subcategory) => (
-                      <SelectItem key={subcategory.id} value={subcategory.id}>{subcategory.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">Price</p>
-                <Select value={selectedPrice} onValueChange={setSelectedPrice}>
-                  <SelectTrigger className={`h-11 rounded-xl ${selectedPrice !== 'any' ? 'text-[#16a34a]' : 'text-black'}`}>
-                    <SelectValue placeholder="Any price" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="any">Any price</SelectItem>
-                    <SelectItem value="under-1000">Under 1000</SelectItem>
-                    <SelectItem value="1000-5000">1000 to 5000</SelectItem>
-                    <SelectItem value="above-5000">Above 5000</SelectItem>
-                    <SelectItem value="on-request">Price on Request</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">Result Scope</p>
-                <div className="flex h-11 items-center rounded-xl border border-border bg-muted/20 px-4 text-sm text-muted-foreground">
-                  {loading ? 'Loading products...' : `${filtered.length} matching products`}
-                </div>
-              </div>
-            </div>
-            </div>
-          )}
         </div>
 
         <div className="mt-8">
@@ -271,7 +234,7 @@ const Software = () => {
           ) : filtered.length === 0 ? (
             <p className="py-10 text-center text-muted-foreground">No software found.</p>
           ) : (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 bg-[#E6F2FF] p-5 rounded-2xl">
               {filtered.map((product) => <ProductCard key={product.id} {...product} />)}
             </div>
           )}

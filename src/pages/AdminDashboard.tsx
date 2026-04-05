@@ -57,6 +57,26 @@ const SortableItem = ({ id, children }: { id: string; children: React.ReactNode 
   );
 };
 
+const getHomepageSectionKey = (section: { section_type: string; reference_id: string | null }) =>
+  `${section.section_type}:${section.reference_id ?? 'null'}`;
+
+const getHeroBannerKey = (banner: {
+  image_url: string | null;
+  title: string | null;
+  subtitle: string | null;
+  link_url: string | null;
+}) =>
+  `${banner.image_url ?? ''}|${banner.title ?? ''}|${banner.subtitle ?? ''}|${banner.link_url ?? ''}`;
+
+const getSectionAdKey = (ad: {
+  category_id: string | null;
+  image_url: string | null;
+  link_url: string | null;
+  alt_text: string | null;
+  ad_type: string | null;
+}) =>
+  `${ad.category_id ?? ''}|${ad.ad_type ?? ''}|${ad.image_url ?? ''}|${ad.link_url ?? ''}|${ad.alt_text ?? ''}`;
+
 const AdminDashboard = () => {
   const { role } = useAuth();
   const { toast } = useToast();
@@ -101,6 +121,8 @@ const AdminDashboard = () => {
   const [leads, setLeads] = useState<any[]>([]);
   const [homepageSections, setHomepageSections] = useState<any[]>([]);
   const [editingReview, setEditingReview] = useState<any | null>(null);
+  const [isAddingBanner, setIsAddingBanner] = useState(false);
+  const [isAddingSectionAd, setIsAddingSectionAd] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentDateTime(new Date()), 1000);
@@ -113,6 +135,187 @@ const AdminDashboard = () => {
   );
 
   useEffect(() => { if (role === 'admin') fetchAll(); }, [role]);
+
+  useEffect(() => {
+    if (role !== 'admin') return;
+    const channel = supabase
+      .channel('admin-products-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        fetchAll();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [role]);
+
+  const normalizeHomepageSections = async (sections: any[]) => {
+    const orderedSections = [...sections].sort((a, b) => {
+      const orderDiff = (a.display_order ?? 0) - (b.display_order ?? 0);
+      return orderDiff !== 0 ? orderDiff : String(a.id).localeCompare(String(b.id));
+    });
+
+    const seen = new Set<string>();
+    const uniqueSections: any[] = [];
+    const duplicateIds: string[] = [];
+
+    orderedSections.forEach((section) => {
+      const key = getHomepageSectionKey(section);
+      if (seen.has(key)) {
+        duplicateIds.push(section.id);
+        return;
+      }
+
+      seen.add(key);
+      uniqueSections.push(section);
+    });
+
+    if (duplicateIds.length > 0) {
+      await supabase.from('homepage_sections' as any).delete().in('id', duplicateIds);
+    }
+
+    const normalizedSections = uniqueSections.map((section, index) => ({
+      ...section,
+      display_order: index,
+    }));
+
+    const needsOrderSync =
+      duplicateIds.length > 0 ||
+      normalizedSections.some((section, index) => section.display_order !== uniqueSections[index]?.display_order);
+
+    if (needsOrderSync) {
+      await Promise.all(
+        normalizedSections.map((section, index) =>
+          supabase.from('homepage_sections' as any).update({ display_order: index }).eq('id', section.id)
+        )
+      );
+    }
+
+    return normalizedSections;
+  };
+
+  const normalizeHeroBanners = async (banners: any[]) => {
+    const orderedBanners = [...banners].sort((a, b) => {
+      const orderDiff = (a.display_order ?? 0) - (b.display_order ?? 0);
+      return orderDiff !== 0 ? orderDiff : String(a.id).localeCompare(String(b.id));
+    });
+
+    const seen = new Set<string>();
+    const uniqueBanners: any[] = [];
+    const duplicateIds: string[] = [];
+
+    orderedBanners.forEach((banner) => {
+      const key = getHeroBannerKey(banner);
+      if (seen.has(key)) {
+        duplicateIds.push(banner.id);
+        return;
+      }
+
+      seen.add(key);
+      uniqueBanners.push(banner);
+    });
+
+    if (duplicateIds.length > 0) {
+      await supabase.from('hero_banners' as any).delete().in('id', duplicateIds);
+    }
+
+    const normalizedBanners = uniqueBanners.map((banner, index) => ({
+      ...banner,
+      display_order: index,
+    }));
+
+    const needsOrderSync =
+      duplicateIds.length > 0 ||
+      normalizedBanners.some((banner, index) => (uniqueBanners[index]?.display_order ?? 0) !== index);
+
+    if (needsOrderSync) {
+      await Promise.all(
+        normalizedBanners.map((banner, index) =>
+          supabase.from('hero_banners' as any).update({ display_order: index }).eq('id', banner.id)
+        )
+      );
+    }
+
+    return normalizedBanners;
+  };
+
+  const normalizeSectionAds = async (ads: any[]) => {
+    const groupedAds = new Map<string, any[]>();
+
+    [...ads]
+      .sort((a, b) => {
+        const categoryDiff = String(a.category_id ?? '').localeCompare(String(b.category_id ?? ''));
+        if (categoryDiff !== 0) return categoryDiff;
+
+        const typeDiff = String(a.ad_type ?? '').localeCompare(String(b.ad_type ?? ''));
+        if (typeDiff !== 0) return typeDiff;
+
+        const orderDiff = (a.display_order ?? 0) - (b.display_order ?? 0);
+        return orderDiff !== 0 ? orderDiff : String(a.id).localeCompare(String(b.id));
+      })
+      .forEach((ad) => {
+        const groupKey = `${ad.category_id ?? ''}:${ad.ad_type ?? ''}`;
+        const current = groupedAds.get(groupKey) ?? [];
+        current.push(ad);
+        groupedAds.set(groupKey, current);
+      });
+
+    const dedupedAds: any[] = [];
+    const duplicateIds: string[] = [];
+
+    groupedAds.forEach((groupAds) => {
+      const seen = new Set<string>();
+
+      groupAds.forEach((ad) => {
+        const key = getSectionAdKey(ad);
+        if (seen.has(key)) {
+          duplicateIds.push(ad.id);
+          return;
+        }
+
+        seen.add(key);
+        dedupedAds.push(ad);
+      });
+    });
+
+    if (duplicateIds.length > 0) {
+      await supabase.from('section_ads' as any).delete().in('id', duplicateIds);
+    }
+
+    const normalizedAds = dedupedAds.map((ad) => ({ ...ad }));
+    const updates: Promise<any>[] = [];
+
+    Array.from(groupedAds.keys()).forEach((groupKey) => {
+      const [categoryId, adType] = groupKey.split(':');
+      const groupItems = normalizedAds.filter(
+        (ad) => String(ad.category_id ?? '') === categoryId && String(ad.ad_type ?? '') === adType
+      );
+
+      groupItems.forEach((ad, index) => {
+        if ((ad.display_order ?? 0) !== index) {
+          ad.display_order = index;
+          updates.push(
+            supabase.from('section_ads' as any).update({ display_order: index }).eq('id', ad.id)
+          );
+        }
+      });
+    });
+
+    if (updates.length > 0) {
+      await Promise.all(updates);
+    }
+
+    return normalizedAds.sort((a, b) => {
+      const categoryDiff = String(a.category_id ?? '').localeCompare(String(b.category_id ?? ''));
+      if (categoryDiff !== 0) return categoryDiff;
+
+      const typeDiff = String(a.ad_type ?? '').localeCompare(String(b.ad_type ?? ''));
+      if (typeDiff !== 0) return typeDiff;
+
+      return (a.display_order ?? 0) - (b.display_order ?? 0);
+    });
+  };
 
   const fetchAll = async () => {
     const [productsRes, reviewsRes, categoriesRes, profilesRes, rolesRes, subcatRes] = await Promise.all([
@@ -148,15 +351,18 @@ const AdminDashboard = () => {
       supabase.from('pricing_plans' as any).select('*').order('display_order'),
       supabase.from('pricing_features' as any).select('*').order('display_order'),
     ]);
-    setHeroBanners((bannersRes.data as any[]) ?? []);
-    setSectionAds((adsRes.data as any[]) ?? []);
+    const normalizedBanners = await normalizeHeroBanners((bannersRes.data as any[]) ?? []);
+    setHeroBanners(normalizedBanners);
+    const normalizedSectionAds = await normalizeSectionAds((adsRes.data as any[]) ?? []);
+    setSectionAds(normalizedSectionAds);
     const plans = (plansRes.data as any[]) ?? [];
     const planFeatures = (planFeaturesRes.data as any[]) ?? [];
     setPricingPlans(plans.map(p => ({ ...p, features: planFeatures.filter(f => f.plan_id === p.id) })));
     const { data: leadsData } = await supabase.from('leads' as any).select('*').order('created_at', { ascending: false }).limit(500);
     setLeads((leadsData as any[]) ?? []);
     const { data: sectionsData } = await supabase.from('homepage_sections' as any).select('*').order('display_order');
-    setHomepageSections((sectionsData as any[]) ?? []);
+    const normalizedSections = await normalizeHomepageSections((sectionsData as any[]) ?? []);
+    setHomepageSections(normalizedSections);
   };
 
   const fetchUserActivity = async (userId: string) => {
@@ -226,14 +432,34 @@ const AdminDashboard = () => {
   const rejectPricingPlan = async (id: string) => { await supabase.from('pricing_plans' as any).update({ status: 'rejected', is_enabled: false }).eq('id', id); toast({ title: 'Pricing plan rejected' }); fetchAll(); };
 
   const addHeroBanner = async () => {
-    if (!bannerFile) return;
-    const path = `hero/${Date.now()}-${bannerFile.name}`;
-    const { error: uploadErr } = await supabase.storage.from('banners').upload(path, bannerFile);
-    if (uploadErr) { toast({ title: 'Upload failed', description: uploadErr.message, variant: 'destructive' }); return; }
-    const { data: urlData } = supabase.storage.from('banners').getPublicUrl(path);
-    await supabase.from('hero_banners' as any).insert({ image_url: urlData.publicUrl, title: bannerTitle || null, subtitle: bannerSubtitle || null, link_url: bannerLinkUrl || null, display_order: heroBanners.length });
-    setBannerFile(null); setBannerTitle(''); setBannerSubtitle(''); setBannerLinkUrl('');
-    toast({ title: 'Banner added' }); fetchAll();
+    if (!bannerFile || isAddingBanner) return;
+
+    setIsAddingBanner(true);
+    try {
+      const path = `hero/${Date.now()}-${bannerFile.name}`;
+      const { error: uploadErr } = await supabase.storage.from('banners').upload(path, bannerFile);
+      if (uploadErr) {
+        toast({ title: 'Upload failed', description: uploadErr.message, variant: 'destructive' });
+        return;
+      }
+
+      const { data: urlData } = supabase.storage.from('banners').getPublicUrl(path);
+      await supabase.from('hero_banners' as any).insert({
+        image_url: urlData.publicUrl,
+        title: bannerTitle || null,
+        subtitle: bannerSubtitle || null,
+        link_url: bannerLinkUrl || null,
+        display_order: heroBanners.length,
+      });
+      setBannerFile(null);
+      setBannerTitle('');
+      setBannerSubtitle('');
+      setBannerLinkUrl('');
+      toast({ title: 'Banner added' });
+      fetchAll();
+    } finally {
+      setIsAddingBanner(false);
+    }
   };
   const deleteBanner = async (id: string) => { await supabase.from('hero_banners' as any).delete().eq('id', id); toast({ title: 'Banner removed' }); fetchAll(); };
   const saveBannerEdit = async () => {
@@ -260,22 +486,48 @@ const AdminDashboard = () => {
   };
 
   const addSectionAd = async () => {
-    if (!adFile || !adCategoryId) return;
-    const path = `ads/${Date.now()}-${adFile.name}`;
-    const { error: uploadErr } = await supabase.storage.from('banners').upload(path, adFile);
-    if (uploadErr) { toast({ title: 'Upload failed', description: uploadErr.message, variant: 'destructive' }); return; }
-    const { data: urlData } = supabase.storage.from('banners').getPublicUrl(path);
-    await supabase.from('section_ads' as any).insert({ category_id: adCategoryId, image_url: urlData.publicUrl, link_url: adLinkUrl || null, alt_text: adAltText || null, ad_type: adType, display_order: sectionAds.filter(a => a.category_id === adCategoryId).length });
-    
-    // Auto-add homepage section if not already present for this category + ad type
-    const sectionType = adType === '2-grid' ? 'ad-2-grid' : 'ad-3-grid';
-    const existing = homepageSections.find(s => s.section_type === sectionType && s.reference_id === adCategoryId);
-    if (!existing) {
-      await supabase.from('homepage_sections' as any).insert({ section_type: sectionType, reference_id: adCategoryId, display_order: homepageSections.length });
+    if (!adFile || !adCategoryId || isAddingSectionAd) return;
+
+    setIsAddingSectionAd(true);
+    try {
+      const path = `ads/${Date.now()}-${adFile.name}`;
+      const { error: uploadErr } = await supabase.storage.from('banners').upload(path, adFile);
+      if (uploadErr) {
+        toast({ title: 'Upload failed', description: uploadErr.message, variant: 'destructive' });
+        return;
+      }
+
+      const { data: urlData } = supabase.storage.from('banners').getPublicUrl(path);
+      await supabase.from('section_ads' as any).insert({
+        category_id: adCategoryId,
+        image_url: urlData.publicUrl,
+        link_url: adLinkUrl || null,
+        alt_text: adAltText || null,
+        ad_type: adType,
+        display_order: sectionAds.filter((a) => a.category_id === adCategoryId && a.ad_type === adType).length,
+      });
+      
+      const sectionType = adType === '2-grid' ? 'ad-2-grid' : 'ad-3-grid';
+      const { data: existingSections } = await supabase
+        .from('homepage_sections' as any)
+        .select('id')
+        .eq('section_type', sectionType)
+        .eq('reference_id', adCategoryId)
+        .limit(1);
+      const existing = (existingSections as any[])?.[0];
+      if (!existing) {
+        await supabase.from('homepage_sections' as any).insert({ section_type: sectionType, reference_id: adCategoryId, display_order: homepageSections.length });
+      }
+      
+      setAdFile(null);
+      setAdLinkUrl('');
+      setAdAltText('');
+      setAdType('3-grid');
+      toast({ title: 'Section ad added' });
+      fetchAll();
+    } finally {
+      setIsAddingSectionAd(false);
     }
-    
-    setAdFile(null); setAdLinkUrl(''); setAdAltText(''); setAdType('3-grid');
-    toast({ title: 'Section ad added' }); fetchAll();
   };
   const deleteSectionAd = async (id: string) => {
     const ad = sectionAds.find(a => a.id === id);
@@ -314,9 +566,13 @@ const AdminDashboard = () => {
         await supabase.from('homepage_sections' as any).delete().eq('section_type', oldSectionType).eq('reference_id', existingAd.category_id);
       }
 
-      const existingNewSection = homepageSections.find((section) =>
-        section.section_type === newSectionType && section.reference_id === existingAd.category_id
-      );
+      const { data: existingNewSections } = await supabase
+        .from('homepage_sections' as any)
+        .select('id')
+        .eq('section_type', newSectionType)
+        .eq('reference_id', existingAd.category_id)
+        .limit(1);
+      const existingNewSection = (existingNewSections as any[])?.[0];
 
       if (!existingNewSection) {
         await supabase.from('homepage_sections' as any).insert({
@@ -331,16 +587,25 @@ const AdminDashboard = () => {
     setEditingSectionAd(null);
     fetchAll();
   };
-  const handleSectionAdDragEnd = async (event: DragEndEvent, categoryId: string) => {
+  const handleSectionAdDragEnd = async (event: DragEndEvent, categoryId: string, adType: string) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const catAds = sectionAds.filter(a => a.category_id === categoryId);
-    const oldIndex = catAds.findIndex(a => a.id === active.id);
-    const newIndex = catAds.findIndex(a => a.id === over.id);
-    const reordered = arrayMove(catAds, oldIndex, newIndex);
-    const otherAds = sectionAds.filter(a => a.category_id !== categoryId);
-    setSectionAds([...otherAds, ...reordered]);
-    await Promise.all(reordered.map((a, i) => supabase.from('section_ads' as any).update({ display_order: i }).eq('id', a.id)));
+    const dragGroupAds = sectionAds.filter((a) => a.category_id === categoryId && a.ad_type === adType);
+    const oldIndex = dragGroupAds.findIndex((a) => a.id === active.id);
+    const newIndex = dragGroupAds.findIndex((a) => a.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(dragGroupAds, oldIndex, newIndex);
+    const updatedAds = sectionAds.map((ad) => {
+      if (ad.category_id !== categoryId || ad.ad_type !== adType) return ad;
+      const nextIndex = reordered.findIndex((item) => item.id === ad.id);
+      return nextIndex === -1 ? ad : { ...ad, display_order: nextIndex };
+    });
+
+    setSectionAds(updatedAds);
+    await Promise.all(
+      reordered.map((a, i) => supabase.from('section_ads' as any).update({ display_order: i }).eq('id', a.id))
+    );
     toast({ title: 'Ad order updated' });
   };
 
@@ -380,12 +645,14 @@ const AdminDashboard = () => {
   const startEditProduct = (p: any) => {
     setEditingProduct({
       ...p, editCompanyName: p.company_name, editSubtitle: p.subtitle ?? '', editDescription: p.description,
-      editSubDescription: p.sub_description ?? '', editCategoryId: p.category_id ?? '',
-      editBestForMin: p.best_for_min?.toString() ?? '', editBestForMax: p.best_for_max?.toString() ?? '',
-      editBestForUnit: p.best_for_unit ?? 'Employees', editPricingValue: p.pricing_value?.toString() ?? '',
+      editCategoryId: p.category_id ?? '',
+      editLogoFile: null,
+      editLogoPreviewUrl: p.logo_url ?? null,
+      editShowFreeTrial: p.show_free_trial ?? true,
+      editPricingValue: p.pricing_value?.toString() ?? '',
       editCurrency: p.currency ?? '₹', editPricingUnit: p.pricing_unit ?? '/user/mo',
       editCtaText: p.cta_text ?? 'Request Demo', editCtaLink: p.cta_link ?? '',
-      editFreeTrialLink: p.free_trial_link ?? '', editFreeTrialText: p.free_trial_text ?? '14-day free trial',
+      editFreeTrialLink: p.free_trial_link ?? '', editFreeTrialText: p.free_trial_text ?? 'Free Trial',
       editRequestDemoLink: p.request_demo_link ?? '', editWebsiteUrl: p.website_url ?? '',
       editFeatures: p.features?.map((f: any) => f.feature_text) ?? [],
       editIntegrations: p.integrations?.map((i: any) => i.integration_name) ?? [],
@@ -397,15 +664,27 @@ const AdminDashboard = () => {
   const saveEditProduct = async () => {
     if (!editingProduct) return;
     const ep = editingProduct;
+    let logoUrl = ep.logo_url ?? null;
+    if (ep.editLogoFile) {
+      const ext = ep.editLogoFile.name.split('.').pop();
+      const path = `${ep.id}/${Date.now()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from('logos').upload(path, ep.editLogoFile);
+      if (uploadErr) {
+        toast({ title: 'Logo upload failed', description: uploadErr.message, variant: 'destructive' });
+        return;
+      }
+      const { data: urlData } = supabase.storage.from('logos').getPublicUrl(path);
+      logoUrl = urlData.publicUrl;
+    }
     await supabase.from('products').update({
       company_name: ep.editCompanyName, subtitle: ep.editSubtitle || null,
-      description: ep.editDescription.slice(0, 150), sub_description: ep.editSubDescription || null,
+      logo_url: logoUrl,
+      description: ep.editDescription.slice(0, 150),
       category_id: ep.editCategoryId || null,
-      best_for_min: parseInt(ep.editBestForMin) || null, best_for_max: parseInt(ep.editBestForMax) || null,
-      best_for_unit: ep.editBestForUnit || 'Employees',
       pricing_value: parseFloat(ep.editPricingValue) || null, currency: ep.editCurrency || '₹', pricing_unit: ep.editPricingUnit,
       cta_text: ep.editCtaText || 'Request Demo', cta_link: ep.editCtaLink || null,
       free_trial_link: ep.editFreeTrialLink || null, free_trial_text: ep.editFreeTrialText || null,
+      show_free_trial: ep.editShowFreeTrial ?? true,
       request_demo_link: ep.editRequestDemoLink || null, website_url: ep.editWebsiteUrl || null,
     } as any).eq('id', ep.id);
     await Promise.all([
@@ -492,7 +771,36 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-center pb-4 border-b border-border">
-                  <ProductCard id={ep.id} companyName={ep.editCompanyName} subtitle={ep.editSubtitle} description={ep.editDescription} subDescription={ep.editSubDescription} logoUrl={ep.logo_url} bestForMin={parseInt(ep.editBestForMin) || null} bestForMax={parseInt(ep.editBestForMax) || null} bestForUnit={ep.editBestForUnit} pricingValue={parseFloat(ep.editPricingValue) || null} currency={ep.editCurrency} pricingUnit={ep.editPricingUnit} ctaText={ep.editCtaText} ctaLink={ep.editCtaLink} freeTrialLink={ep.editFreeTrialLink} freeTrialText={ep.editFreeTrialText} requestDemoLink={ep.editRequestDemoLink} websiteUrl={ep.editWebsiteUrl} categoryLabel={categories.find(c => c.id === ep.editCategoryId)?.name} features={ep.editFeatures} integrations={ep.editIntegrations} links={ep.editLinks} />
+                  <ProductCard id={ep.id} companyName={ep.editCompanyName} subtitle={ep.editSubtitle} description={ep.editDescription} logoUrl={ep.editLogoPreviewUrl || ep.logo_url} pricingValue={parseFloat(ep.editPricingValue) || null} currency={ep.editCurrency} pricingUnit={ep.editPricingUnit} ctaText={ep.editCtaText} ctaLink={ep.editCtaLink} freeTrialLink={ep.editFreeTrialLink} freeTrialText={ep.editFreeTrialText} requestDemoLink={ep.editRequestDemoLink} websiteUrl={ep.editWebsiteUrl} categoryLabel={categories.find(c => c.id === ep.editCategoryId)?.name} features={ep.editFeatures} integrations={ep.editIntegrations} links={ep.editLinks} showFreeTrial={ep.editShowFreeTrial ?? true} />
+                </div>
+                <div>
+                  <Label>Logo</Label>
+                  <div className="mt-2 flex items-center gap-4">
+                    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted">
+                      {ep.editLogoPreviewUrl || ep.logo_url ? (
+                        <img src={ep.editLogoPreviewUrl || ep.logo_url} alt={ep.editCompanyName || 'Logo'} className="h-full w-full object-contain p-2" />
+                      ) : (
+                        <span className="text-lg font-semibold text-muted-foreground">{ep.editCompanyName?.charAt(0) || '?'}</span>
+                      )}
+                    </div>
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-4 py-2 hover:bg-muted">
+                      <Upload className="h-4 w-4" />
+                      <span className="text-sm">{ep.editLogoFile?.name ?? 'Update logo'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null;
+                          setEditingProduct({
+                            ...ep,
+                            editLogoFile: file,
+                            editLogoPreviewUrl: file ? URL.createObjectURL(file) : ep.logo_url ?? null,
+                          });
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div><Label>Company Name</Label><Input value={ep.editCompanyName} onChange={(e) => setEditingProduct({ ...ep, editCompanyName: e.target.value })} /></div>
@@ -500,12 +808,7 @@ const AdminDashboard = () => {
                 </div>
                 <div><Label>Category</Label><Select value={ep.editCategoryId} onValueChange={(v) => setEditingProduct({ ...ep, editCategoryId: v })}><SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger><SelectContent>{categories.filter(c => c.id).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
                 <div><Label>Description</Label><Textarea value={ep.editDescription} onChange={(e) => setEditingProduct({ ...ep, editDescription: e.target.value })} maxLength={150} rows={2} /></div>
-                <div><Label>Sub-description</Label><Input value={ep.editSubDescription} onChange={(e) => setEditingProduct({ ...ep, editSubDescription: e.target.value })} /></div>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div><Label>Best For Min</Label><Input type="number" value={ep.editBestForMin} onChange={(e) => setEditingProduct({ ...ep, editBestForMin: e.target.value })} /></div>
-                  <div><Label>Best For Max</Label><Input type="number" value={ep.editBestForMax} onChange={(e) => setEditingProduct({ ...ep, editBestForMax: e.target.value })} /></div>
-                  <div><Label>Unit</Label><Input value={ep.editBestForUnit} onChange={(e) => setEditingProduct({ ...ep, editBestForUnit: e.target.value })} /></div>
-                </div>
+
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div><Label>Price</Label><Input type="number" value={ep.editPricingValue} onChange={(e) => setEditingProduct({ ...ep, editPricingValue: e.target.value })} /></div>
                   <div><Label>Currency</Label><Select value={ep.editCurrency} onValueChange={(v) => setEditingProduct({ ...ep, editCurrency: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CURRENCIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent></Select></div>
@@ -517,7 +820,12 @@ const AdminDashboard = () => {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div><Label>Free Trial Link</Label><Input value={ep.editFreeTrialLink} onChange={(e) => setEditingProduct({ ...ep, editFreeTrialLink: e.target.value })} /></div>
-                  <div><Label>Free Trial Text</Label><Input value={ep.editFreeTrialText} onChange={(e) => setEditingProduct({ ...ep, editFreeTrialText: e.target.value })} /></div>
+                  <div className="flex items-center gap-2 mt-6">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input type="checkbox" checked={ep.editShowFreeTrial ?? true} onChange={(e) => setEditingProduct({ ...ep, editShowFreeTrial: e.target.checked })} className="rounded" />
+                      <span>Show Free Trial button</span>
+                    </label>
+                  </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div><Label>Request Demo Link</Label><Input value={ep.editRequestDemoLink} onChange={(e) => setEditingProduct({ ...ep, editRequestDemoLink: e.target.value })} /></div>
@@ -892,7 +1200,7 @@ const AdminDashboard = () => {
       {activeTab === 'banners' && (
         <div className="space-y-6">
           <h1 className="text-2xl font-bold font-[Plus_Jakarta_Sans]">Hero Banners</h1>
-          <Card><CardHeader><CardTitle className="text-base">Add Hero Banner (max 3)</CardTitle></CardHeader><CardContent className="space-y-3"><div className="grid gap-3 sm:grid-cols-2"><div><Label>Banner Image</Label><label className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-4 py-2 hover:bg-muted"><Upload className="h-4 w-4" /><span className="text-sm">{bannerFile?.name ?? 'Choose file'}</span><input type="file" accept="image/*" className="hidden" onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)} /></label></div><div><Label>Title (optional)</Label><Input value={bannerTitle} onChange={(e) => setBannerTitle(e.target.value)} placeholder="Banner headline" /></div></div><div className="grid gap-3 sm:grid-cols-2"><div><Label>Subtitle (optional)</Label><Input value={bannerSubtitle} onChange={(e) => setBannerSubtitle(e.target.value)} /></div><div><Label>Link URL (optional)</Label><Input value={bannerLinkUrl} onChange={(e) => setBannerLinkUrl(e.target.value)} placeholder="https://" /></div></div><Button onClick={addHeroBanner} disabled={!bannerFile || heroBanners.length >= 3}><Plus className="mr-1 h-4 w-4" /> Add Banner</Button></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-base">Add Hero Banner (max 3)</CardTitle></CardHeader><CardContent className="space-y-3"><div className="grid gap-3 sm:grid-cols-2"><div><Label>Banner Image</Label><label className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-4 py-2 hover:bg-muted"><Upload className="h-4 w-4" /><span className="text-sm">{bannerFile?.name ?? 'Choose file'}</span><input type="file" accept="image/*" className="hidden" onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)} /></label></div><div><Label>Title (optional)</Label><Input value={bannerTitle} onChange={(e) => setBannerTitle(e.target.value)} placeholder="Banner headline" /></div></div><div className="grid gap-3 sm:grid-cols-2"><div><Label>Subtitle (optional)</Label><Input value={bannerSubtitle} onChange={(e) => setBannerSubtitle(e.target.value)} /></div><div><Label>Link URL (optional)</Label><Input value={bannerLinkUrl} onChange={(e) => setBannerLinkUrl(e.target.value)} placeholder="https://" /></div></div><Button onClick={addHeroBanner} disabled={!bannerFile || heroBanners.length >= 3 || isAddingBanner}><Plus className="mr-1 h-4 w-4" /> {isAddingBanner ? 'Adding...' : 'Add Banner'}</Button></CardContent></Card>
           {editingBanner && (
             <Card className="border-primary">
               <CardHeader className="flex flex-row items-center justify-between">
@@ -938,7 +1246,7 @@ const AdminDashboard = () => {
                 <div><Label>Link URL</Label><Input value={adLinkUrl} onChange={(e) => setAdLinkUrl(e.target.value)} placeholder="https://" /></div>
                 <div><Label>Alt Text</Label><Input value={adAltText} onChange={(e) => setAdAltText(e.target.value)} /></div>
               </div>
-              <Button onClick={addSectionAd} disabled={!adFile || !adCategoryId}><Plus className="mr-1 h-4 w-4" /> Add Ad</Button>
+              <Button onClick={addSectionAd} disabled={!adFile || !adCategoryId || isAddingSectionAd}><Plus className="mr-1 h-4 w-4" /> {isAddingSectionAd ? 'Adding...' : 'Add Ad'}</Button>
             </CardContent>
           </Card>
           {editingSectionAd && (
@@ -963,16 +1271,29 @@ const AdminDashboard = () => {
             </Card>
           )}
           {categories.map(cat => {
-            const catAds = sectionAds.filter(a => a.category_id === cat.id);
-            if (catAds.length === 0) return null;
-            return (
-              <Card key={cat.id}>
-                <CardHeader><CardTitle className="text-base">{cat.name}</CardTitle></CardHeader>
-                <CardContent>
-                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleSectionAdDragEnd(e, cat.id)}>
-                    <SortableContext items={catAds.map(a => a.id)} strategy={verticalListSortingStrategy}>
+            const threeGridAds = sectionAds
+              .filter((a) => a.category_id === cat.id && a.ad_type === '3-grid')
+              .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+            const twoGridAds = sectionAds
+              .filter((a) => a.category_id === cat.id && a.ad_type === '2-grid')
+              .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+
+            if (threeGridAds.length === 0 && twoGridAds.length === 0) return null;
+
+            const renderAdGroup = (title: string, ads: any[], type: string) => {
+              if (ads.length === 0) return null;
+
+              return (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">{title}</p>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={(e) => handleSectionAdDragEnd(e, cat.id, type)}
+                  >
+                    <SortableContext items={ads.map((a) => a.id)} strategy={verticalListSortingStrategy}>
                       <div className="space-y-2">
-                        {catAds.map(ad => (
+                        {ads.map((ad) => (
                           <SortableItem key={ad.id} id={ad.id}>
                             <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
                               <img src={ad.image_url} alt={ad.alt_text || 'Ad'} className="w-32 h-20 object-cover rounded-lg" />
@@ -992,6 +1313,16 @@ const AdminDashboard = () => {
                       </div>
                     </SortableContext>
                   </DndContext>
+                </div>
+              );
+            };
+
+            return (
+              <Card key={cat.id}>
+                <CardHeader><CardTitle className="text-base">{cat.name}</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  {renderAdGroup('3 Banner Grid', threeGridAds, '3-grid')}
+                  {renderAdGroup('2 Banner Grid', twoGridAds, '2-grid')}
                 </CardContent>
               </Card>
             );
@@ -1100,7 +1431,7 @@ const AdminDashboard = () => {
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {sortedProducts.map((p) => (
                   <div key={p.id} className="space-y-2">
-                    <ProductCard id={p.id} companyName={p.company_name} subtitle={p.subtitle} description={p.description} subDescription={p.sub_description} logoUrl={p.logo_url} bestForMin={p.best_for_min} bestForMax={p.best_for_max} bestForUnit={p.best_for_unit} pricingValue={p.pricing_value} currency={p.currency} pricingUnit={p.pricing_unit} ctaText={p.cta_text} ctaLink={p.cta_link} freeTrialLink={p.free_trial_link} freeTrialText={p.free_trial_text} requestDemoLink={p.request_demo_link} websiteUrl={p.website_url} categoryLabel={categories.find(c => c.id === p.category_id)?.name} features={p.features?.map((f: any) => f.feature_text) ?? []} integrations={p.integrations?.map((i: any) => i.integration_name) ?? []} links={p.links?.map((l: any) => ({ text: l.link_text, url: l.link_url, isHighlighted: l.is_highlighted ?? false })) ?? []} />
+                    <ProductCard id={p.id} companyName={p.company_name} subtitle={p.subtitle} description={p.description} logoUrl={p.logo_url} pricingValue={p.pricing_value} currency={p.currency} pricingUnit={p.pricing_unit} ctaText={p.cta_text} ctaLink={p.cta_link} freeTrialLink={p.free_trial_link} freeTrialText={p.free_trial_text} requestDemoLink={p.request_demo_link} websiteUrl={p.website_url} categoryLabel={categories.find(c => c.id === p.category_id)?.name} features={p.features?.map((f: any) => f.feature_text) ?? []} integrations={p.integrations?.map((i: any) => i.integration_name) ?? []} links={p.links?.map((l: any) => ({ text: l.link_text, url: l.link_url, isHighlighted: l.is_highlighted ?? false })) ?? []} showFreeTrial={p.show_free_trial ?? true} />
                     <div className="rounded-xl border border-border bg-card p-3 space-y-2">
                       <div className="flex items-center justify-between"><span className="text-xs font-medium text-muted-foreground">Total Views</span><Badge variant="secondary">{productViewCounts[p.id] || 0}</Badge></div>
                       <div className="flex items-center justify-between"><span className="text-xs font-medium text-muted-foreground">Total Clicks</span><Badge>{productClickCounts[p.id] || 0}</Badge></div>

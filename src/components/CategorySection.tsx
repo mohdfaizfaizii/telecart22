@@ -38,9 +38,10 @@ interface CategorySectionProps {
   categoryName: string;
   categoryId: string;
   products: ProductCardProps[];
+  showInlineAds?: boolean;
 }
 
-const CategorySection = ({ categoryName, categoryId, products }: CategorySectionProps) => {
+const CategorySection = ({ categoryName, categoryId, products, showInlineAds = true }: CategorySectionProps) => {
   // products sliced in return below
   const firstProduct = products[0];
   const firstPricingValue = safeParsePricingValue(firstProduct?.pricingValue);
@@ -53,12 +54,12 @@ const CategorySection = ({ categoryName, categoryId, products }: CategorySection
 
   return (
     <section className="py-10 bg-muted/50 w-full">
-      <div className="w-full mx-auto px-0">
-        {/* Section Ads - outside white container */}
-        <SectionAds categoryId={categoryId} />
+      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Section Ads */}
+        {showInlineAds && <SectionAds categoryId={categoryId} />}
 
-        {/* White container with cards */}
-        <div className="bg-card border border-border shadow-sm p-6 mt-6">
+        {/* Cards section without white container */}
+        <div className="mt-6">
           {/* Header */}
           <div className="mb-6 flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Star, ChevronRight, X, Building2 } from 'lucide-react';
+import { Star, ChevronRight, X, ArrowUpRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTrackActivity } from '@/hooks/use-track-activity';
@@ -11,18 +11,13 @@ export interface ProductCardProps {
   companyName: string;
   subtitle?: string | null;
   description: string;
-  subDescription?: string | null;
   logoUrl?: string | null;
-  bestForMin?: number | null;
-  bestForMax?: number | null;
-  bestForUnit?: string | null;
+  showFreeTrial?: boolean;
   pricingValue?: number | null;
   currency?: string | null;
   pricingUnit?: string | null;
   ctaText?: string | null;
   ctaLink?: string | null;
-  oldPrice?: number | null;
-  newPrice?: number | null;
   discountPercent?: number | null;
   freeTrialLink?: string | null;
   freeTrialText?: string | null;
@@ -42,15 +37,15 @@ export interface ProductCardProps {
 }
 
 const ProductCard = ({
-  id, companyName, subtitle, description, subDescription, logoUrl,
-  bestForMin, bestForMax, bestForUnit,
+  id, companyName, subtitle, description, logoUrl,
   pricingValue, currency, pricingUnit,
   ctaText, ctaLink,
-  oldPrice, newPrice, discountPercent,
+  discountPercent,
   freeTrialLink, freeTrialText, requestDemoLink, websiteUrl,
   googleFormUrl, googleFormStatus,
   rating = 0, isSponsored, categoryLabel,
   features = [], integrations = [],
+  showFreeTrial = true,
   banners = [], links = [],
   priceOnRequest, showPricing = true,
 }: ProductCardProps) => {
@@ -147,10 +142,10 @@ const ProductCard = ({
     return null;
   };
 
-  const discount = discountPercent ?? (oldPrice && newPrice ? Math.round(((oldPrice - newPrice) / oldPrice) * 100) : 0);
+  const discount = discountPercent ?? 0;
 
   const defaultWhatsNextItems = [
-    { text: 'Start 14-day Free Trial', url: freeTrialLink || '#', isHighlighted: false },
+    { text: 'Start Free Trial', url: freeTrialLink || '#', isHighlighted: false },
     { text: 'Request A Quote', url: '#', isHighlighted: false },
     { text: 'Get Free Advice', url: '#', isHighlighted: false },
     { text: 'Apply Startup Offer', url: '#', isHighlighted: false },
@@ -162,12 +157,6 @@ const ProductCard = ({
     ? [{ text: 'Go to Website', url: websiteUrl, isHighlighted: false }, ...baseWhatsNextItems]
     : baseWhatsNextItems;
 
-  const bestForText = bestForMin && bestForMax
-    ? `${bestForMin} – ${bestForMax} ${bestForUnit || 'Employees'}`
-    : bestForMin
-    ? `${bestForMin}+ ${bestForUnit || 'Employees'}`
-    : null;
-
   const resolvedPricingUnit = parsePricingUnit(pricingUnit);
   const resolvedPricingValue = parsePricingValue(pricingValue);
 
@@ -176,24 +165,28 @@ const ProductCard = ({
     ? `${currency || '₹'}${resolvedPricingValue.toLocaleString()}`
     : null;
 
+  const showPricingBlock = showPricing && (pricingText || priceOnRequest);
   const resolvedCtaText = ctaText || 'Request Demo';
   const resolvedCtaLink = ctaLink || requestDemoLink || `/product/${id}`;
+  const showFreeTrialButton = showFreeTrial; // always show when enabled, regardless of links
+  const freeTrialButtonText = (freeTrialText && freeTrialText.trim()) || 'Free Trial';
+  const freeTrialButtonUrl = freeTrialLink || requestDemoLink || resolvedCtaLink;
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full ">
       {/* Main Card */}
       <div 
         onClick={handleCardClick}
-        className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-[0_10px_30px_rgba(15,23,42,0.10)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_18px_45px_rgba(15,23,42,0.16)] cursor-pointer"
+        className="group relative overflow-hidden rounded-2xl border border-border bg-white shadow-[0_10px_30px_rgba(15,23,42,0.10)] transition-all duration-500 ease-out hover:-translate-y-2 hover:scale-[1.035] hover:shadow-[0_24px_60px_rgba(15,23,42,0.18)] cursor-pointer"
       >
         {/* Header */}
         <div className="flex items-start gap-3 p-5 pb-3">
           {logoUrl ? (
-            <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden">
+            <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden transition-transform duration-500 ease-out group-hover:scale-110">
               <img src={logoUrl} alt={companyName} className="h-full w-full object-contain" />
             </div>
           ) : (
-            <div className="h-14 w-14 flex-shrink-0 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+            <div className="h-14 w-14 flex-shrink-0 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center transition-transform duration-500 ease-out group-hover:scale-110">
               <span className="text-xl font-bold text-primary-foreground">{companyName.charAt(0)}</span>
             </div>
           )}
@@ -211,39 +204,37 @@ const ProductCard = ({
 
         {/* Description */}
         <div className="px-5">
-          <p className="text-[15px] text-foreground leading-snug line-clamp-2">{description}</p>
+          <p className="text-[15px] text-foreground leading-snug line-clamp-2 transition-colors duration-300 group-hover:text-foreground/90">{description}</p>
         </div>
 
-        {subDescription && (
-          <div className="flex items-center gap-2 px-5 mt-3">
-            <Building2 className="h-4 w-4 text-primary flex-shrink-0" />
-            <p className="text-sm text-muted-foreground">{subDescription}</p>
-          </div>
-        )}
 
-        {/* Best For + Pricing Row */}
-        {(bestForText || pricingText || priceOnRequest) && (
-          <div className="mx-5 mt-4 flex rounded-lg border border-border overflow-hidden bg-muted/20">
-            {bestForText && (
-              <div className={`flex-1 px-3 py-2.5 ${(pricingText || priceOnRequest) ? 'border-r border-border' : ''}`}>
-                <p className="text-xs text-muted-foreground font-medium mb-0.5">Best For</p>
-                <p className="text-sm font-semibold text-foreground">{bestForText}</p>
+        {/* Pricing + Free Trial Row */}
+        {(showPricingBlock || showFreeTrialButton) && (
+          <div className="mx-5 mt-4 flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2">
+            {showPricingBlock && (
+              <div>
+                <p className="text-xs text-muted-foreground font-medium mb-0.5">STARTING AT</p>
+                {priceOnRequest ? (
+                  <p className="text-sm font-semibold text-primary">Price on Request</p>
+                ) : (
+                  <p className="text-sm font-semibold text-black whitespace-nowrap">
+                    {pricingText}<span>{resolvedPricingUnit}</span>
+                  </p>
+                )}
               </div>
             )}
-            {priceOnRequest && showPricing ? (
-              <div className="flex-1 px-3 py-2.5">
-                <p className="text-xs text-muted-foreground font-medium mb-0.5">Pricing</p>
-                <p className="text-sm font-semibold text-primary">Price on Request</p>
-              </div>
-            ) : pricingText ? (
-              <div className="flex-1 px-3 py-2.5">
-                <p className="text-xs text-muted-foreground font-medium mb-0.5">Pricing</p>
-                <p className="text-sm text-foreground">
-                  Starts at <span className="font-bold text-[#ff4700]">{pricingText}</span>
-                  <span className="text-muted-foreground">{resolvedPricingUnit}</span>
-                </p>
-              </div>
-            ) : null}
+            {showFreeTrialButton && (
+              <a
+                href={freeTrialLink || requestDemoLink || resolvedCtaLink}
+                target={(freeTrialLink || requestDemoLink || resolvedCtaLink).startsWith('http') ? '_blank' : undefined}
+                rel={(freeTrialLink || requestDemoLink || resolvedCtaLink).startsWith('http') ? 'noopener noreferrer' : undefined}
+                onClick={(e) => guardClick(e, freeTrialButtonUrl, freeTrialButtonText)}
+                className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-all duration-200 hover:bg-emerald-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 hover:scale-[1.02]"
+              >
+                <ArrowUpRight className="h-3.5 w-3.5" />
+                {freeTrialButtonText}
+              </a>
+            )}
           </div>
         )}
 

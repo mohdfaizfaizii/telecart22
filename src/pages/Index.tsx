@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useProductSubscription } from '@/hooks/use-product-subscription';
 import Header from '@/components/Header';
 import HeroSection from '@/components/HeroSection';
 import CategorySection from '@/components/CategorySection';
@@ -27,9 +28,8 @@ const Index = () => {
   const [sections, setSections] = useState<HomepageSection[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const [catsRes, productsRes, featuresRes, integrationsRes, reviewsRes, sectionsRes] = await Promise.all([
+  const fetchData = useCallback(async () => {
+    const [catsRes, productsRes, featuresRes, integrationsRes, reviewsRes, sectionsRes] = await Promise.all([
         supabase.from('categories').select('*').eq('is_visible', true).order('display_order'),
         supabase.from('products').select('*').eq('status', 'approved').eq('is_visible', true).order('display_order'),
         supabase.from('product_features').select('*').order('display_order'),
@@ -52,10 +52,16 @@ const Index = () => {
       });
 
       const featureMap: Record<string, string[]> = {};
-      features.forEach((f: any) => { if (!featureMap[f.product_id]) featureMap[f.product_id] = []; featureMap[f.product_id].push(f.feature_text); });
+      features.forEach((f: any) => {
+        if (!featureMap[f.product_id]) featureMap[f.product_id] = [];
+        featureMap[f.product_id].push(f.feature_text);
+      });
 
       const integrationMap: Record<string, string[]> = {};
-      integrations.forEach((i: any) => { if (!integrationMap[i.product_id]) integrationMap[i.product_id] = []; integrationMap[i.product_id].push(i.integration_name); });
+      integrations.forEach((i: any) => {
+        if (!integrationMap[i.product_id]) integrationMap[i.product_id] = [];
+        integrationMap[i.product_id].push(i.integration_name);
+      });
 
       const categorized: CategoryWithProducts[] = cats.map((cat: any) => ({
         id: cat.id,
@@ -65,18 +71,12 @@ const Index = () => {
           companyName: p.company_name,
           subtitle: p.subtitle,
           description: p.description,
-          subDescription: p.sub_description,
           logoUrl: p.logo_url,
-          bestForMin: p.best_for_min,
-          bestForMax: p.best_for_max,
-          bestForUnit: p.best_for_unit,
           pricingValue: p.pricing_value,
           currency: p.currency,
           pricingUnit: p.pricing_unit,
           ctaText: p.cta_text,
           ctaLink: p.cta_link,
-          oldPrice: p.old_price,
-          newPrice: p.new_price,
           discountPercent: p.discount_percent,
           freeTrialLink: p.free_trial_link,
           freeTrialText: p.free_trial_text,
@@ -91,15 +91,21 @@ const Index = () => {
           integrations: integrationMap[p.id] ?? [],
           priceOnRequest: p.price_on_request ?? false,
           showPricing: p.show_pricing ?? true,
+          showFreeTrial: p.show_free_trial ?? true,
         })),
       }));
 
       setCategories(categorized);
       setSections((sectionsRes.data as any[]) ?? []);
       setLoading(false);
-    };
-    fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Subscribe to real-time product changes
+  useProductSubscription(fetchData);
 
   // Build the page layout based on sections ordering
   const renderSections = () => {
@@ -108,7 +114,7 @@ const Index = () => {
     // If no sections configured, use default order: categories with their ads
     if (sections.length === 0) {
       return categoriesWithProducts.map((cat) => (
-        <CategorySection key={cat.id} categoryId={cat.id} categoryName={cat.name} products={cat.products} />
+        <CategorySection key={cat.id} categoryId={cat.id} categoryName={cat.name} products={cat.products} showInlineAds />
       ));
     }
 
@@ -117,7 +123,7 @@ const Index = () => {
         case 'category': {
           const cat = categoriesWithProducts.find(c => c.id === section.reference_id);
           if (!cat) return null;
-          return <CategorySection key={section.id} categoryId={cat.id} categoryName={cat.name} products={cat.products} />;
+          return <CategorySection key={section.id} categoryId={cat.id} categoryName={cat.name} products={cat.products} showInlineAds={false} />;
         }
         case 'ad-3-grid':
         case 'ad-2-grid': {
@@ -137,7 +143,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#E6F2FF]">
       <Header />
       <main>
         <HeroSection />

@@ -12,15 +12,18 @@ interface HeroBanner {
   link_url: string | null;
 }
 
+const getHeroBannerKey = (banner: HeroBanner) =>
+  `${banner.image_url}|${banner.title ?? ''}|${banner.subtitle ?? ''}|${banner.link_url ?? ''}`;
+
 const BannerSlide = ({ banner }: { banner: HeroBanner }) => (
-  <div className="relative w-full overflow-hidden bg-card">
-    <div className="relative w-full h-[50vh] md:h-[60vh] lg:h-[65vh]">
+  <div className="relative w-full overflow-hidden bg-[#E6F2FF]">
+    <div className="relative w-full">
       {banner.link_url ? (
-        <a href={banner.link_url} target="_blank" rel="noopener noreferrer" className="block h-full w-full">
-          <img src={banner.image_url} alt={banner.title || 'Banner'} className="h-full w-full object-cover object-[50%_40%] transition-transform duration-700 group-hover:scale-105" />
+        <a href={banner.link_url} target="_blank" rel="noopener noreferrer" className="block w-full">
+          <img src={banner.image_url} alt={banner.title || 'Banner'} className="block w-full h-auto" />
         </a>
       ) : (
-        <img src={banner.image_url} alt={banner.title || 'Banner'} className="h-full w-full object-cover object-[50%_40%] transition-transform duration-700 group-hover:scale-105" />
+        <img src={banner.image_url} alt={banner.title || 'Banner'} className="block w-full h-auto" />
       )}
     </div>
   </div>
@@ -39,7 +42,13 @@ const HeroSection = () => {
         .select('*')
         .eq('is_visible', true)
         .order('display_order');
-      setBanners((data as any[]) ?? []);
+
+      const uniqueBanners = ((data as any[]) ?? []).filter((banner, index, list) => {
+        const currentKey = getHeroBannerKey(banner);
+        return index === list.findIndex((item) => getHeroBannerKey(item) === currentKey);
+      });
+
+      setBanners(uniqueBanners);
     };
     fetchBanners();
   }, []);
@@ -67,14 +76,14 @@ const HeroSection = () => {
 
   if (banners.length === 1) {
     return (
-      <section className="w-full min-h-[60vh]">
+      <section className="w-full">
         <BannerSlide banner={banners[0]} />
       </section>
     );
   }
 
   return (
-    <section className="w-full min-h-[60vh]">
+    <section className="w-full">
       <Carousel
         opts={{ loop: true, align: 'start' }}
         plugins={[Autoplay({ delay: 4000, stopOnInteraction: true })]}

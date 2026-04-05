@@ -59,7 +59,7 @@ const FAQSection = () => {
   const faqs = activeTab === 'buyers' ? buyerFaqs : sellerFaqs;
 
   return (
-    <section className="bg-white py-20">
+    <section className="bg-[#E6F2FF] py-20">
       <div className="container mx-auto px-6 md:px-8">
         <h2 className="mb-8 text-center text-3xl font-bold">
           Frequently Asked Questions
@@ -97,7 +97,7 @@ const FAQSection = () => {
           </div>
         </div>
 
-        <div className="mx-auto max-w-4xl rounded-2xl bg-card px-6 py-6 shadow-sm md:px-8 md:py-8">
+        <div className="mx-auto max-w-4xl rounded-2xl bg-white px-6 py-6 shadow-sm md:px-8 md:py-8">
           <Accordion type="single" collapsible>
             {faqs.map((faq, i) => (
               <AccordionItem key={i} value={`faq-${i}`}>

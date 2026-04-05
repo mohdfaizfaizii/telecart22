@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useProductSubscription } from '@/hooks/use-product-subscription';
 import { useAuth } from '@/lib/auth-context';
 import { useTrackActivity } from '@/hooks/use-track-activity';
 import Header from '@/components/Header';
@@ -70,13 +71,6 @@ const ProductDetail = () => {
   const [pricingPlans, setPricingPlans] = useState<any[]>([]);
   const [payingPlanId, setPayingPlanId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (id) {
-      fetchProduct();
-      trackView(id);
-    }
-  }, [id, trackView]);
-
   const fetchProduct = async () => {
     const [pRes, fRes, iRes, rRes, plansRes] = await Promise.all([
       supabase.from('products').select('*').eq('id', id!).single(),
@@ -96,6 +90,16 @@ const ProductDetail = () => {
       setPricingPlans(plans.map(p => ({ ...p, features: (planFeats ?? []).filter((f: any) => f.plan_id === p.id) })));
     }
   };
+
+  useEffect(() => {
+    if (id) {
+      fetchProduct();
+      trackView(id);
+    }
+  }, [id, trackView]);
+
+  // Subscribe to real-time product changes
+  useProductSubscription(fetchProduct);
 
   const avgRating = reviews.length > 0 ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0;
   const ratingBreakdown = [5, 4, 3, 2, 1].map(star => ({
@@ -168,10 +172,9 @@ const ProductDetail = () => {
     );
   }
 
-  const discount = product.discount_percent ?? (product.old_price && product.new_price
-    ? Math.round(((product.old_price - product.new_price) / product.old_price) * 100) : 0);
+  const discount = product.discount_percent ?? 0;
 
-  const resolvedPricingValue = safeParsePricingValue(product?.pricing_value ?? product?.new_price ?? product?.old_price);
+  const resolvedPricingValue = safeParsePricingValue(product?.pricing_value);
   const resolvedPricingUnit = safeParsePricingUnit(product?.pricing_unit);
 
   return (
@@ -206,12 +209,6 @@ const ProductDetail = () => {
                   )}
                 </div>
                 <p className="mt-3 text-foreground">{product.description}</p>
-                {product.sub_description && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <Building2 className="h-4 w-4 text-primary" />
-                    <span className="text-sm text-muted-foreground">{product.sub_description}</span>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -241,9 +238,6 @@ const ProductDetail = () => {
                     <div>
                       <p className="text-sm text-muted-foreground">Starting at</p>
                       <div className="flex items-baseline gap-2 mt-1">
-                        {product.old_price && product.new_price && (
-                          <span className="text-lg text-muted-foreground line-through">{product.currency || '₹'}{product.old_price.toLocaleString()}</span>
-                        )}
                         <p className="text-3xl font-bold text-foreground">
                           {product.currency || '₹'}{resolvedPricingValue.toLocaleString()}
                         </p>

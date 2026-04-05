@@ -63,21 +63,16 @@ const BrandDashboard = () => {
   const [companyName, setCompanyName] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [description, setDescription] = useState('');
-  const [subDescription, setSubDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [bestForMin, setBestForMin] = useState('');
-  const [bestForMax, setBestForMax] = useState('');
-  const [bestForUnit, setBestForUnit] = useState('Employees');
   const [pricingValue, setPricingValue] = useState('');
-  const [oldPrice, setOldPrice] = useState('');
-  const [newPrice, setNewPrice] = useState('');
   const [currency, setCurrency] = useState('₹');
   const [pricingUnit, setPricingUnit] = useState('/user/mo');
   const [ctaText, setCtaText] = useState('Request Demo');
   const [ctaLink, setCtaLink] = useState('');
   const [freeTrialLink, setFreeTrialLink] = useState('');
-  const [freeTrialText, setFreeTrialText] = useState('14-day free trial');
+  const [freeTrialText, setFreeTrialText] = useState('Free Trial');
+  const [showFreeTrial, setShowFreeTrial] = useState(true);
   const [requestDemoLink, setRequestDemoLink] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [googleFormUrl, setGoogleFormUrl] = useState('');
@@ -158,8 +153,15 @@ const BrandDashboard = () => {
   };
 
   const fetchBrandAnalytics = async () => {
-    const { data } = await supabase.from('user_activity' as any).select('*').order('created_at', { ascending: false }).limit(500);
-    setAnalytics(data ?? []);
+    // Get all product IDs for this brand
+    const { data: prods } = await supabase.from('products').select('id').eq('brand_user_id', user!.id);
+    if (prods && prods.length > 0) {
+      const productIds = prods.map(p => p.id);
+      const { data } = await supabase.from('user_activity' as any).select('*').in('product_id', productIds).order('created_at', { ascending: false }).limit(500);
+      setAnalytics(data ?? []);
+    } else {
+      setAnalytics([]);
+    }
   };
 
   const fetchReviews = async () => {
@@ -171,8 +173,14 @@ const BrandDashboard = () => {
   };
 
   const fetchLeads = async () => {
-    const { data } = await supabase.from('leads' as any).select('*').order('created_at', { ascending: false }).limit(200);
-    setLeads((data as any[]) ?? []);
+    // Get all product IDs for this brand
+    const { data: prods } = await supabase.from('products').select('id').eq('brand_user_id', user!.id);
+    if (prods && prods.length > 0) {
+      const { data } = await supabase.from('leads' as any).select('*').in('product_id', prods.map(p => p.id)).order('created_at', { ascending: false }).limit(200);
+      setLeads((data as any[]) ?? []);
+    } else {
+      setLeads([]);
+    }
   };
 
   const fetchPricingPlans = async () => {
@@ -192,11 +200,11 @@ const BrandDashboard = () => {
   const getProductName = (productId: string) => products.find(p => p.id === productId)?.company_name ?? productId;
 
   const resetForm = () => {
-    setCompanyName(''); setSubtitle(''); setDescription(''); setSubDescription('');
-    setCategoryId(''); setNewCategoryName(''); setBestForMin(''); setBestForMax(''); setBestForUnit('Employees');
-    setPricingValue(''); setOldPrice(''); setNewPrice(''); setCurrency('₹'); setPricingUnit('/user/mo');
+    setCompanyName(''); setSubtitle(''); setDescription('');
+    setCategoryId(''); setNewCategoryName('');
+    setPricingValue(''); setCurrency('₹'); setPricingUnit('/user/mo');
     setCtaText('Request Demo'); setCtaLink('');
-    setFreeTrialLink(''); setFreeTrialText('14-day free trial'); setRequestDemoLink(''); setWebsiteUrl(''); setGoogleFormUrl('');
+    setFreeTrialLink(''); setFreeTrialText('Free Trial'); setShowFreeTrial(true); setRequestDemoLink(''); setWebsiteUrl(''); setGoogleFormUrl('');
     setFeatures([]); setIntegrations([]); setNewFeature(''); setNewIntegration('');
     setLogoFile(null); setEditingId(null); setPriceOnRequest(false);
     setActionLinks([]); setLinkText(''); setLinkUrl(''); setLinkHighlighted(false);
@@ -209,6 +217,23 @@ const BrandDashboard = () => {
     if (data) { setCategoryId(data.id); setNewCategoryName(''); fetchCategories(); toast({ title: 'Category created' }); }
   };
 
+  const saveProductRecord = async (productData: any) => {
+    const performSave = async (data: any) => {
+      if (editingId) {
+        return supabase.from('products').update(data).eq('id', editingId);
+      }
+      return supabase.from('products').insert({ ...data, brand_user_id: user!.id }).select().single();
+    };
+
+    let result = await performSave(productData);
+    if (result.error && result.error.message?.includes('show_free_trial')) {
+      const fallbackData = { ...productData };
+      delete fallbackData.show_free_trial;
+      result = await performSave(fallbackData);
+    }
+    return result;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -218,43 +243,48 @@ const BrandDashboard = () => {
       const ext = logoFile.name.split('.').pop();
       const path = `${user.id}/${Date.now()}.${ext}`;
       const { error: uploadErr } = await supabase.storage.from('logos').upload(path, logoFile);
-      if (!uploadErr) { const { data: urlData } = supabase.storage.from('logos').getPublicUrl(path); logoUrl = urlData.publicUrl; }
+      if (uploadErr) throw uploadErr;
+      const { data: urlData } = supabase.storage.from('logos').getPublicUrl(path);
+      logoUrl = urlData.publicUrl;
     }
     const productData: any = {
       company_name: companyName, subtitle: subtitle || null, description: description.slice(0, 150),
-      sub_description: subDescription || null, category_id: categoryId || null,
-      best_for_min: parseInt(bestForMin) || null, best_for_max: parseInt(bestForMax) || null, best_for_unit: bestForUnit || 'Employees',
+      category_id: categoryId || null,
       pricing_value: parseFloat(pricingValue) || null,
-      old_price: parseFloat(oldPrice) || null,
-      new_price: parseFloat(newPrice) || null,
       currency: currency || '₹', pricing_unit: safeParsePricingUnit(pricingUnit),
       cta_text: ctaText || 'Request Demo', cta_link: ctaLink || null,
       free_trial_link: freeTrialLink || null, free_trial_text: freeTrialText || null,
       request_demo_link: requestDemoLink || null, website_url: websiteUrl || null,
       google_form_url: googleFormUrl || null, google_form_status: googleFormUrl ? 'pending' : null,
       price_on_request: priceOnRequest,
+      show_free_trial: showFreeTrial,
       status: 'pending', ...(logoUrl && { logo_url: logoUrl }),
     };
     try {
       let productId = editingId;
       if (editingId) {
-        await supabase.from('products').update(productData).eq('id', editingId);
-        await Promise.all([
+        const { error: updateError } = await saveProductRecord(productData);
+        if (updateError) throw updateError;
+        const cleanupResults = await Promise.all([
           supabase.from('product_features').delete().eq('product_id', editingId),
           supabase.from('product_integrations').delete().eq('product_id', editingId),
           supabase.from('product_links').delete().eq('product_id', editingId),
         ]);
+        const cleanupError = cleanupResults.find((result) => result.error)?.error;
+        if (cleanupError) throw cleanupError;
       } else {
-        const { data: newProduct } = await supabase.from('products').insert({ ...productData, brand_user_id: user.id }).select().single();
+        const { data: newProduct, error: insertError } = await saveProductRecord(productData) as any;
+        if (insertError) throw insertError;
         productId = newProduct?.id;
       }
-      if (productId) {
-        const inserts = [];
-        if (features.length > 0) inserts.push(supabase.from('product_features').insert(features.map((f, i) => ({ product_id: productId!, feature_text: f, display_order: i }))));
-        if (integrations.length > 0) inserts.push(supabase.from('product_integrations').insert(integrations.map((n, i) => ({ product_id: productId!, integration_name: n, display_order: i }))));
-        if (actionLinks.length > 0) inserts.push(supabase.from('product_links').insert(actionLinks.map((l, i) => ({ product_id: productId!, link_text: l.text, link_url: l.url, is_highlighted: l.isHighlighted, display_order: i }))));
-        await Promise.all(inserts);
-      }
+      if (!productId) throw new Error('Product could not be saved.');
+      const inserts = [];
+      if (features.length > 0) inserts.push(supabase.from('product_features').insert(features.map((f, i) => ({ product_id: productId!, feature_text: f, display_order: i }))));
+      if (integrations.length > 0) inserts.push(supabase.from('product_integrations').insert(integrations.map((n, i) => ({ product_id: productId!, integration_name: n, display_order: i }))));
+      if (actionLinks.length > 0) inserts.push(supabase.from('product_links').insert(actionLinks.map((l, i) => ({ product_id: productId!, link_text: l.text, link_url: l.url, is_highlighted: l.isHighlighted, display_order: i }))));
+      const insertResults = await Promise.all(inserts);
+      const childInsertError = insertResults.find((result) => result.error)?.error;
+      if (childInsertError) throw childInsertError;
       toast({ title: editingId ? 'Product updated and re-submitted' : 'Product submitted for approval' });
       resetForm(); setShowForm(false); fetchProducts();
     } catch (err: any) {
@@ -265,18 +295,16 @@ const BrandDashboard = () => {
 
   const editProduct = (p: any) => {
     setEditingId(p.id); setCompanyName(p.company_name); setSubtitle(p.subtitle ?? '');
-    setDescription(p.description); setSubDescription(p.sub_description ?? '');
-    setCategoryId(p.category_id ?? ''); setBestForMin(p.best_for_min?.toString() ?? '');
-    setBestForMax(p.best_for_max?.toString() ?? ''); setBestForUnit(p.best_for_unit ?? 'Employees');
+    setDescription(p.description);
+    setCategoryId(p.category_id ?? '');
     setPricingValue(p.pricing_value?.toString() ?? '');
-    setOldPrice(p.old_price?.toString() ?? '');
-    setNewPrice(p.new_price?.toString() ?? '');
     setCurrency(p.currency ?? '₹');
     setPricingUnit(safeParsePricingUnit(p.pricing_unit)); setCtaText(p.cta_text ?? 'Request Demo');
     setCtaLink(p.cta_link ?? ''); setFreeTrialLink(p.free_trial_link ?? '');
-    setFreeTrialText(p.free_trial_text ?? '14-day free trial'); setRequestDemoLink(p.request_demo_link ?? '');
+    setFreeTrialText(p.free_trial_text ?? 'Free Trial'); setRequestDemoLink(p.request_demo_link ?? '');
     setWebsiteUrl(p.website_url ?? ''); setGoogleFormUrl(p.google_form_url ?? '');
     setPriceOnRequest(p.price_on_request ?? false);
+    setShowFreeTrial(p.show_free_trial ?? true);
     setFeatures(p.features?.map((f: any) => f.feature_text) ?? []);
     setIntegrations(p.integrations?.map((i: any) => i.integration_name) ?? []);
     setActionLinks(p.links?.map((l: any) => ({ text: l.link_text, url: l.link_url, isHighlighted: l.is_highlighted ?? false })) ?? []);
@@ -458,12 +486,6 @@ const BrandDashboard = () => {
                       </div>
                     </div>
                     <div><Label>Description *</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={150} rows={2} required /></div>
-                    <div><Label>Sub-description</Label><Input value={subDescription} onChange={(e) => setSubDescription(e.target.value)} /></div>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <div><Label className="text-xs">Best For Min</Label><Input type="number" value={bestForMin} onChange={(e) => setBestForMin(e.target.value)} /></div>
-                      <div><Label className="text-xs">Best For Max</Label><Input type="number" value={bestForMax} onChange={(e) => setBestForMax(e.target.value)} /></div>
-                      <div><Label className="text-xs">Unit</Label><Input value={bestForUnit} onChange={(e) => setBestForUnit(e.target.value)} /></div>
-                    </div>
                     <div className="border-t border-border pt-4 space-y-3">
                       <Label className="text-base font-semibold">Pricing Information</Label>
                     <p className="text-xs text-muted-foreground">Leave both prices empty to show "Price on Request"</p>
@@ -472,10 +494,6 @@ const BrandDashboard = () => {
                           <input type="checkbox" checked={priceOnRequest} onChange={(e) => setPriceOnRequest(e.target.checked)} className="rounded" />
                           <span className="font-medium">Price on Request (hide pricing, show "Price on Request" on card)</span>
                         </label>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div><Label className="text-xs">Old Price (Optional)</Label><Input type="number" value={oldPrice} onChange={(e) => setOldPrice(e.target.value)} placeholder="Original price" /></div>
-                        <div><Label className="text-xs">New Price</Label><Input type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="Current price" /></div>
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div><Label className="text-xs">Currency</Label>
@@ -491,8 +509,13 @@ const BrandDashboard = () => {
                       <div><Label className="text-xs">CTA Text</Label><Input value={ctaText} onChange={(e) => setCtaText(e.target.value)} /></div>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div><Label>Free Trial Link</Label><Input value={freeTrialLink} onChange={(e) => setFreeTrialLink(e.target.value)} /></div>
-                      <div><Label>Free Trial Text</Label><Input value={freeTrialText} onChange={(e) => setFreeTrialText(e.target.value)} /></div>
+                      <div><Label>Free Trial Link</Label><Input value={freeTrialLink} onChange={(e) => setFreeTrialLink(e.target.value)} placeholder="e.g. https://..." /></div>
+                      <div className="flex items-center gap-2 mt-6">
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input type="checkbox" checked={showFreeTrial} onChange={(e) => setShowFreeTrial(e.target.checked)} className="rounded" />
+                          <span>Show Free Trial button</span>
+                        </label>
+                      </div>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div><Label>Request Demo Link</Label><Input value={requestDemoLink} onChange={(e) => setRequestDemoLink(e.target.value)} /></div>
@@ -546,14 +569,14 @@ const BrandDashboard = () => {
                     <p className="text-sm font-semibold text-muted-foreground mb-3">Live Preview</p>
                     <ProductCard
                       id="preview" companyName={companyName || 'Company Name'} subtitle={subtitle}
-                      description={description || 'Product description will appear here'} subDescription={subDescription}
-                      logoUrl={logoPreviewUrl || undefined} bestForMin={parseInt(bestForMin) || null} bestForMax={parseInt(bestForMax) || null}
-                      bestForUnit={bestForUnit} pricingValue={parseFloat(pricingValue) || null} currency={currency}
+                      description={description || 'Product description will appear here'}
+                      logoUrl={logoPreviewUrl || undefined}
+                      pricingValue={parseFloat(pricingValue) || null} currency={currency}
                       pricingUnit={pricingUnit} ctaText={ctaText} ctaLink={ctaLink} freeTrialLink={freeTrialLink}
                       freeTrialText={freeTrialText} requestDemoLink={requestDemoLink} websiteUrl={websiteUrl}
                       categoryLabel={categories.find(c => c.id === categoryId)?.name} features={features}
                       integrations={integrations} links={actionLinks}
-                      priceOnRequest={priceOnRequest} showPricing={!priceOnRequest}
+                      priceOnRequest={priceOnRequest} showPricing={!priceOnRequest} showFreeTrial={showFreeTrial}
                     />
                   </div>
                 </div>
@@ -575,8 +598,7 @@ const BrandDashboard = () => {
                 <div key={p.id} className="space-y-2">
                   <ProductCard
                     id={p.id} companyName={p.company_name} subtitle={p.subtitle}
-                    description={p.description} subDescription={p.sub_description} logoUrl={p.logo_url}
-                    bestForMin={p.best_for_min} bestForMax={p.best_for_max} bestForUnit={p.best_for_unit}
+                    description={p.description} logoUrl={p.logo_url}
                     pricingValue={p.pricing_value} currency={p.currency} pricingUnit={p.pricing_unit}
                     ctaText={p.cta_text} ctaLink={p.cta_link}
                     freeTrialLink={p.free_trial_link} freeTrialText={p.free_trial_text}
@@ -587,6 +609,7 @@ const BrandDashboard = () => {
                     links={p.links?.map((l: any) => ({ text: l.link_text, url: l.link_url, isHighlighted: l.is_highlighted ?? false })) ?? []}
                     priceOnRequest={p.price_on_request ?? false}
                     showPricing={!p.price_on_request}
+                    showFreeTrial={p.show_free_trial ?? true}
                   />
                   <div className="flex items-center justify-between px-2">
                     <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColor(p.status)}`}>{p.status}</span>

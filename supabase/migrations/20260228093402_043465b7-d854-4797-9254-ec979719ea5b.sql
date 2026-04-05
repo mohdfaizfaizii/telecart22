@@ -2,7 +2,7 @@
 -- Add new fields to products table for the updated card design
 ALTER TABLE public.products 
   ADD COLUMN IF NOT EXISTS website_url TEXT,
-  ADD COLUMN IF NOT EXISTS free_trial_text TEXT DEFAULT '14-day free trial',
+  ADD COLUMN IF NOT EXISTS free_trial_text TEXT DEFAULT 'Free Trial',
   ADD COLUMN IF NOT EXISTS category_label TEXT;
 
 -- Create product action links table for "What's next" panel

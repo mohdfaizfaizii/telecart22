@@ -16,8 +16,7 @@ interface AuthContextType {
   verifyOtp: (email: string, token: string) => Promise<void>;
   updateProfile: (fullName: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-}
+  signOut: () => Promise<void>;  refreshToken: () => Promise<boolean>;}
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
@@ -43,7 +42,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const AUTH_REDIRECT_URL = `${window.location.origin}/auth`;
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Handle token refresh errors
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.debug('[auth-context] Auth state changed:', event);
+      
+      // Handle token refresh or recovery
+      if (event === 'TOKEN_REFRESHED') {
+        console.debug('[auth-context] Token refreshed successfully');
+      } else if (event === 'SIGNED_OUT' || !session) {
+        setSession(null);
+        setUser(null);
+        setRole(null);
+        setFullName(null);
+        setLoading(false);
+        return;
+      }
+      
       setSession(session);
       setUser(session?.user ?? null);
       setFullName(session?.user?.user_metadata?.full_name ?? null);
@@ -55,7 +69,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     });
 
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        // Attempt to refresh token on app load
+        supabase.auth.refreshSession().catch(err => {
+          console.debug('[auth-context] Token refresh failed:', err);
+        });
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setFullName(session?.user?.user_metadata?.full_name ?? null);
@@ -129,6 +150,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw error;
   };
 
+  const refreshToken = async (): Promise<boolean> => {
+    try {
+      const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
+      if (error) {
+        console.error('[auth-context] Token refresh failed:', error);
+        // If refresh fails, sign out the user
+        await signOut();
+        return false;
+      }
+      if (refreshedSession) {
+        setSession(refreshedSession);
+        setUser(refreshedSession.user);
+        console.debug('[auth-context] Token refreshed successfully');
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('[auth-context] Token refresh exception:', err);
+      await signOut();
+      return false;
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -137,7 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, role, fullName, loading, signUp, signIn, sendOtp, verifyOtp, updateProfile, updatePassword, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, fullName, loading, signUp, signIn, sendOtp, verifyOtp, updateProfile, updatePassword, signOut, refreshToken }}>
       {children}
     </AuthContext.Provider>
   );
