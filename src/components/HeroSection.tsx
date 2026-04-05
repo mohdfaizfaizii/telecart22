@@ -26,14 +26,14 @@ const BannerSlide = ({ banner }: { banner: HeroBanner }) => (
           <img
             src={banner.image_url}
             alt={banner.title || 'Banner'}
-            className="block w-full h-auto"
+            className="block w-full h-auto min-h-[250px] md:min-h-0"
           />
         </a>
       ) : (
         <img
           src={banner.image_url}
           alt={banner.title || 'Banner'}
-          className="block w-full h-auto"
+          className="block w-full h-auto min-h-[250px] md:min-h-0"
         />
       )}
     </div>
