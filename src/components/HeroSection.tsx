@@ -20,10 +20,18 @@ const BannerSlide = ({ banner }: { banner: HeroBanner }) => (
     <div className="relative w-full">
       {banner.link_url ? (
         <a href={banner.link_url} target="_blank" rel="noopener noreferrer" className="block w-full">
-          <img src={banner.image_url} alt={banner.title || 'Banner'} className="block w-full h-auto" />
+          <img
+            src={banner.image_url}
+            alt={banner.title || 'Banner'}
+            className="block h-[220px] w-full object-cover sm:h-auto sm:object-contain"
+          />
         </a>
       ) : (
-        <img src={banner.image_url} alt={banner.title || 'Banner'} className="block w-full h-auto" />
+        <img
+          src={banner.image_url}
+          alt={banner.title || 'Banner'}
+          className="block h-[220px] w-full object-cover sm:h-auto sm:object-contain"
+        />
       )}
     </div>
   </div>
