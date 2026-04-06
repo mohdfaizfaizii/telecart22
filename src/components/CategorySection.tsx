@@ -57,22 +57,22 @@ const CategorySection = ({ categoryName, categoryId, products, showInlineAds = t
       className="w-full py-10"
       style={{ backgroundImage: 'var(--gradient-background)', backgroundAttachment: 'fixed' }}
     >
-      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full mx-auto">
         {/* Section Ads */}
         {showInlineAds && <SectionAds categoryId={categoryId} />}
 
         {/* Cards section without white container */}
         <div className="mt-6 rounded-3xl px-0 py-1">
           {/* Header */}
-          <div className="mb-6 flex items-center justify-between border-b border-border pb-3">
+          <div className="mb-6 flex w-full items-center justify-between rounded-none bg-white px-8 py-9">
             <div className="flex items-center gap-2">
               <h3 className="text-2xl md:text-3xl font-bold font-[Plus_Jakarta_Sans] text-foreground">
                 {categoryName}
               </h3>
             </div>
             <Link to={`/software?category=${categoryId}`}>
-              <Button variant="link" className="text-[#5f259f] font-semibold text-sm">
-                See all cards →
+              <Button variant="outline" className="h-10 rounded-xl border border-border bg-white px-5 text-sm font-medium text-foreground shadow-[0_4px_10px_rgba(15,23,42,0.06)] transition-colors hover:border-[#4027bf] hover:bg-[#4027bf] hover:text-white">
+                See All
               </Button>
             </Link>
           </div>

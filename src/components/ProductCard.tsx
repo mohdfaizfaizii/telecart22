@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Star, ChevronRight, X, ArrowUpRight } from 'lucide-react';
+import { Star, ChevronRight, X, MoreHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTrackActivity } from '@/hooks/use-track-activity';
@@ -41,11 +41,10 @@ const ProductCard = ({
   pricingValue, currency, pricingUnit,
   ctaText, ctaLink,
   discountPercent,
-  freeTrialLink, freeTrialText, requestDemoLink, websiteUrl,
+  freeTrialLink, requestDemoLink, websiteUrl,
   googleFormUrl, googleFormStatus,
   rating = 0, isSponsored, categoryLabel,
   features = [], integrations = [],
-  showFreeTrial = true,
   banners = [], links = [],
   priceOnRequest, showPricing = true,
 }: ProductCardProps) => {
@@ -168,16 +167,13 @@ const ProductCard = ({
   const showPricingBlock = showPricing && (pricingText || priceOnRequest);
   const resolvedCtaText = ctaText || 'Request Demo';
   const resolvedCtaLink = ctaLink || requestDemoLink || `/product/${id}`;
-  const showFreeTrialButton = showFreeTrial; // always show when enabled, regardless of links
-  const freeTrialButtonText = (freeTrialText && freeTrialText.trim()) || 'Free Trial';
-  const freeTrialButtonUrl = freeTrialLink || requestDemoLink || resolvedCtaLink;
 
   return (
     <div className="relative w-full ">
       {/* Main Card */}
       <div 
         onClick={handleCardClick}
-        className="group relative overflow-hidden rounded-2xl border border-border bg-white shadow-[0_10px_30px_rgba(15,23,42,0.10)] transition-all duration-500 ease-out hover:-translate-y-2 hover:scale-[1.035] hover:shadow-[0_24px_60px_rgba(15,23,42,0.18)] cursor-pointer"
+        className="group relative overflow-hidden rounded-2xl border border-transparent bg-white shadow-[0_10px_30px_rgba(15,23,42,0.10)] transition-all duration-500 ease-out hover:-translate-y-2 hover:scale-[1.035] hover:border-blue-500 hover:shadow-[0_24px_60px_rgba(15,23,42,0.18)] cursor-pointer"
       >
         {/* Header */}
         <div className="flex items-start gap-3 p-5 pb-3">
@@ -192,7 +188,7 @@ const ProductCard = ({
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-lg font-bold text-foreground truncate">{companyName}</h3>
+              <h3 className="text-lg font-bold text-foreground truncate transition-colors duration-300 group-hover:text-[#4027bf]">{companyName}</h3>
               <div className="flex items-center gap-1 flex-shrink-0">
                 <Star className="h-4 w-4 fill-[#f5b301] text-[#f5b301]" />
                 <span className="text-sm font-bold text-foreground">{rating.toFixed(1)}</span>
@@ -208,62 +204,46 @@ const ProductCard = ({
         </div>
 
 
-        {/* Pricing + Free Trial Row */}
-        {(showPricingBlock || showFreeTrialButton) && (
-          <div className="mx-5 mt-4 flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2">
+        {/* Pricing Row */}
+        {showPricingBlock && (
+          <div className="mx-5 mt-4 rounded-xl border border-[#d9dee7] bg-[#f3f4f6] px-4 py-3">
             {showPricingBlock && (
               <div>
-                <p className="text-xs text-muted-foreground font-medium mb-0.5">STARTING AT</p>
                 {priceOnRequest ? (
-                  <p className="text-sm font-semibold text-primary">Price on Request</p>
+                  <p className="text-base font-semibold text-primary">STARTING AT Price on Request</p>
                 ) : (
-                  <p className="text-sm font-semibold text-black whitespace-nowrap">
+                  <p className="text-lg font-semibold text-[#4027bf] whitespace-nowrap">
+                    <span className="mr-1 text-sm font-medium uppercase text-muted-foreground">STARTING AT</span>
                     {pricingText}<span>{resolvedPricingUnit}</span>
                   </p>
                 )}
               </div>
             )}
-            {showFreeTrialButton && (
-              <a
-                href={freeTrialLink || requestDemoLink || resolvedCtaLink}
-                target={(freeTrialLink || requestDemoLink || resolvedCtaLink).startsWith('http') ? '_blank' : undefined}
-                rel={(freeTrialLink || requestDemoLink || resolvedCtaLink).startsWith('http') ? 'noopener noreferrer' : undefined}
-                onClick={(e) => guardClick(e, freeTrialButtonUrl, freeTrialButtonText)}
-                className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-all duration-200 hover:bg-emerald-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 hover:scale-[1.02]"
-              >
-                <ArrowUpRight className="h-3.5 w-3.5" />
-                {freeTrialButtonText}
-              </a>
-            )}
           </div>
         )}
 
         {/* CTA Button */}
-        <div className="px-5 mt-4">
+        <div className="mt-5 flex items-center justify-between gap-4 px-5 pb-7">
           <a
             href={resolvedCtaLink}
             target={resolvedCtaLink.startsWith('http') ? '_blank' : undefined}
             rel={resolvedCtaLink.startsWith('http') ? 'noopener noreferrer' : undefined}
             onClick={(e) => guardClick(e, resolvedCtaLink, resolvedCtaText)}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#ff7d36] via-[#ff5618] to-[#ff4700] hover:from-[#ff6e33] hover:via-[#ff4811] hover:to-[#e54200] px-4 py-2 text-sm font-bold text-white transition-all shadow-[0_4px_10px_rgba(255,69,0,0.30)] hover:shadow-[0_6px_15px_rgba(255,69,0,0.40)] active:shadow-[0_2px_6px_rgba(255,69,0,0.35)] active:scale-[0.98]"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#4a2dd8] px-6 py-2.5 text-base font-bold text-white transition-all shadow-[0_4px_10px_rgba(74,45,216,0.30)] hover:bg-[#4027bf] hover:shadow-[0_6px_15px_rgba(74,45,216,0.40)] active:scale-[0.98] active:shadow-[0_2px_6px_rgba(74,45,216,0.35)]"
           >
-            <span className="text-base">📋</span>
             {resolvedCtaText}
             <ChevronRight className="h-4 w-4" />
           </a>
-        </div>
-
-        {/* More Options */}
-        <div className="px-5 py-3 text-center">
           <button
             onClick={(e) => {
               e.stopPropagation();
               if (!user) { navigate(`/auth?redirect=${encodeURIComponent(window.location.pathname)}`); return; }
               setShowWhatsNext(true);
             }}
-            className="text-sm font-semibold bg-gradient-to-r from-[#ff7d36] via-[#ff5618] to-[#ff4700] bg-clip-text text-transparent"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#4a2dd8] bg-white text-[#4a2dd8] shadow-sm transition-colors hover:bg-[#4027bf] hover:text-white"
+            aria-label="More options"
           >
-            More Options &gt;&gt;
+            <MoreHorizontal className="h-5 w-5" />
           </button>
         </div>
       </div>
