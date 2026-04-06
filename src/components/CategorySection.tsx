@@ -57,7 +57,7 @@ const CategorySection = ({ categoryName, categoryId, products, showInlineAds = t
       className="w-full py-10"
       style={{ backgroundImage: 'var(--gradient-background)', backgroundAttachment: 'fixed' }}
     >
-      <div className="w-full mx-auto">
+      <div className="w-full">
         {/* Section Ads */}
         {showInlineAds && <SectionAds categoryId={categoryId} />}
 
@@ -77,10 +77,12 @@ const CategorySection = ({ categoryName, categoryId, products, showInlineAds = t
             </Link>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {displayed.map((p) => (
-              <ProductCard key={p.id} {...p} />
-            ))}
+          <div className="px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {displayed.map((p) => (
+                <ProductCard key={p.id} {...p} />
+              ))}
+            </div>
           </div>
         </div>
       </div>
