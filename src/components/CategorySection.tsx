@@ -50,7 +50,12 @@ const CategorySection = ({ categoryName, categoryId, products, showInlineAds = t
     ? `${firstProduct.currency || '₹'}${firstPricingValue.toLocaleString()}${firstPricingUnit}`
     : null;
 
-  const displayed = products.slice(0, 4);
+  const displayed = products.slice(0, 3);
+  const popupColors = [
+    'bg-gradient-to-br from-[#3648b2] via-[#6b4fc2] to-[#a486f1]',
+    'bg-gradient-to-br from-[#5b6be5] via-[#8b5cf6] to-[#a78bfa]',
+    'bg-gradient-to-br from-[#4c1d95] via-[#7c3aed] to-[#c084fc]',
+  ];
 
   return (
     <section
@@ -64,9 +69,9 @@ const CategorySection = ({ categoryName, categoryId, products, showInlineAds = t
         {/* Cards section without white container */}
         <div className="mt-6 rounded-3xl px-0 py-1">
           {/* Header */}
-          <div className="mb-6 flex w-full items-center justify-between rounded-none bg-white px-8 py-9">
+          <div className="mb-6 flex w-full items-center justify-between rounded-none bg-white px-4 sm:px-6 lg:px-8 py-6 sm:py-9">
             <div className="flex items-center gap-2">
-              <h3 className="text-2xl md:text-3xl font-bold font-[Plus_Jakarta_Sans] text-foreground">
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold font-[Plus_Jakarta_Sans] text-foreground">
                 {categoryName}
               </h3>
             </div>
@@ -77,10 +82,10 @@ const CategorySection = ({ categoryName, categoryId, products, showInlineAds = t
             </Link>
           </div>
 
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {displayed.map((p) => (
-                <ProductCard key={p.id} {...p} />
+          <div className="px-4 sm:px-6 lg:px-8 flex justify-center">
+            <div className="grid gap-4 sm:gap-6 lg:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full max-w-7xl">
+              {displayed.map((p, index) => (
+                <ProductCard key={p.id} {...p} popupBackgroundClass={popupColors[index % popupColors.length]} />
               ))}
             </div>
           </div>
