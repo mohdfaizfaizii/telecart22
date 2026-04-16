@@ -240,8 +240,8 @@ const ProductCard = ({
         )}
 
         {/* CTA Button and Ratings */}
-        <div className="mt-5 flex items-center justify-between gap-4 px-4 sm:px-6 pb-7">
-          <div className="flex items-center gap-1 flex-shrink-0 px-6 py-2.5 bg-white rounded-xl border border-[#4a2dd8]">
+        <div className="mt-5 flex min-w-0 flex-wrap items-center justify-between gap-4 px-4 sm:px-6 pb-7">
+          <div className="flex min-w-0 items-center gap-1 px-5 py-2.5 bg-white rounded-xl border border-[#4a2dd8]">
             <Star className="h-4 w-4 fill-[#f5b301] text-[#f5b301]" />
             <span className="text-sm font-bold text-foreground">{rating.toFixed(1)}</span>
           </div>
@@ -250,7 +250,7 @@ const ProductCard = ({
             target={resolvedCtaLink.startsWith('http') ? '_blank' : undefined}
             rel={resolvedCtaLink.startsWith('http') ? 'noopener noreferrer' : undefined}
             onClick={(e) => guardClick(e, resolvedCtaLink, resolvedCtaText)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#4a2dd8] bg-white px-6 py-2.5 text-base font-bold text-[#4a2dd8] transition-all shadow-[0_4px_10px_rgba(74,45,216,0.30)] active:scale-[0.98] active:shadow-[0_2px_6px_rgba(74,45,216,0.35)] flex-shrink-0"
+            className="inline-flex min-w-0 w-full justify-center gap-2 rounded-xl border border-[#4a2dd8] bg-white px-6 py-2.5 text-base font-bold text-[#4a2dd8] transition-all shadow-[0_4px_10px_rgba(74,45,216,0.30)] active:scale-[0.98] active:shadow-[0_2px_6px_rgba(74,45,216,0.35)] sm:w-auto"
           >
             {resolvedCtaText}
             <ChevronRight className="h-4 w-4" />
@@ -268,13 +268,13 @@ const ProductCard = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 24, scale: 0.97 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className={`absolute bottom-0 left-2 right-2 z-20 w-auto max-w-[92vw] sm:left-1/2 sm:right-auto sm:w-[82vw] sm:max-w-[360px] md:w-[60vw] lg:w-[48vw] min-w-[220px] sm:-translate-x-1/2 translate-x-0 origin-bottom-center rounded-3xl border border-white/20 ${popupBackgroundClass || 'bg-gradient-to-br from-[#3648b2] via-[#6b4fc2] to-[#a486f1]'} shadow-[0_-10px_40px_rgba(0,0,0,0.18)] flex flex-col text-white`}
+                className={`absolute bottom-0 left-2 right-2 z-20 mx-auto w-auto max-w-[360px] min-w-0 origin-bottom-center rounded-3xl border border-white/20 ${popupBackgroundClass || 'bg-gradient-to-br from-[#3648b2] via-[#6b4fc2] to-[#a486f1]'} shadow-[0_-10px_40px_rgba(0,0,0,0.18)] flex h-auto max-h-[calc(100vh-2.5rem)] flex-col overflow-hidden text-white`}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-start gap-3 p-4 border-b border-white/30 bg-white/10">
-                  <h4 className="text-base font-bold text-[#fffff]">{companyName}</h4>
+                  <h4 className="text-base font-bold text-white">{companyName}</h4>
                 </div>
-                <div className="flex-1 overflow-y-auto py-2">
+                <div className="flex-1 min-h-0 overflow-y-auto py-2">
                   {whatsNextItems.map((item, i) => (
                     <button
                       key={i}
@@ -301,7 +301,7 @@ const ProductCard = ({
                       }}
                     >
                       <span className="text-white text-lg leading-none">›</span>
-                      <span className={item.isHighlighted ? 'font-bold text-yellow-200' : ''}>{item.text}</span>
+                      <span className={`${item.isHighlighted ? 'font-bold text-yellow-200' : ''} break-words`}>{item.text}</span>
                     </button>
                   ))}
                 </div>

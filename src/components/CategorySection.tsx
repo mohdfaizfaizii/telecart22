@@ -50,7 +50,7 @@ const CategorySection = ({ categoryName, categoryId, products, showInlineAds = t
     ? `${firstProduct.currency || '₹'}${firstPricingValue.toLocaleString()}${firstPricingUnit}`
     : null;
 
-  const displayed = products.slice(0, 3);
+  const displayed = products;
   const popupColors = [
     'bg-gradient-to-br from-[#3648b2] via-[#6b4fc2] to-[#a486f1]',
     'bg-gradient-to-br from-[#5b6be5] via-[#8b5cf6] to-[#a78bfa]',

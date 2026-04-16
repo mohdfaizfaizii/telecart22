@@ -238,7 +238,7 @@ const Software = () => {
             <p className="py-10 text-center text-muted-foreground">No software found.</p>
           ) : (
             <div
-              className="grid gap-5 rounded-2xl border border-white/60 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 xl:grid-cols-4"
+              className="grid gap-5 rounded-2xl border border-white/60 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3"
               style={{ backgroundImage: 'var(--gradient-background)' }}
             >
               {filtered.map((product) => <ProductCard key={product.id} {...product} />)}

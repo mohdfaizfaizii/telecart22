@@ -111,39 +111,9 @@ const Index = () => {
   const renderSections = () => {
     const categoriesWithProducts = categories.filter(c => c.products.length > 0);
 
-    // If no sections configured, use default order: categories with their ads
-    if (sections.length === 0) {
-      return categoriesWithProducts.map((cat) => (
-        <CategorySection key={cat.id} categoryId={cat.id} categoryName={cat.name} products={cat.products} showInlineAds />
-      ));
-    }
-
-    return sections.map((section) => {
-      switch (section.section_type) {
-        case 'category': {
-          const cat = categoriesWithProducts.find(c => c.id === section.reference_id);
-          if (!cat) return null;
-          return <CategorySection key={section.id} categoryId={cat.id} categoryName={cat.name} products={cat.products} showInlineAds={false} />;
-        }
-        case 'ad-3-grid':
-        case 'ad-2-grid': {
-          if (!section.reference_id) return null;
-          return (
-            <section
-              key={section.id}
-              className="py-4"
-              style={{ backgroundImage: 'var(--gradient-background)', backgroundAttachment: 'fixed' }}
-            >
-              <div className="container mx-auto px-4">
-                <SectionAds categoryId={section.reference_id} adType={section.section_type} />
-              </div>
-            </section>
-          );
-        }
-        default:
-          return null;
-      }
-    }).filter(Boolean);
+    return categoriesWithProducts.map((cat) => (
+      <CategorySection key={cat.id} categoryId={cat.id} categoryName={cat.name} products={cat.products} showInlineAds />
+    ));
   };
 
   return (
