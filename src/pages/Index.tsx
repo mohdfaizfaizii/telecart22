@@ -107,13 +107,46 @@ const Index = () => {
   // Subscribe to real-time product changes
   useProductSubscription(fetchData);
 
-  // Build the page layout based on sections ordering
+  // Build the page layout based on homepage section ordering
   const renderSections = () => {
-    const categoriesWithProducts = categories.filter(c => c.products.length > 0);
+    const uniqueSections = sections.reduce((acc: HomepageSection[], section) => {
+      const key = `${section.section_type}:${section.reference_id ?? 'null'}`;
+      if (!acc.some((existing) => `${existing.section_type}:${existing.reference_id ?? 'null'}` === key)) {
+        acc.push(section);
+      }
+      return acc;
+    }, []);
 
-    return categoriesWithProducts.map((cat) => (
-      <CategorySection key={cat.id} categoryId={cat.id} categoryName={cat.name} products={cat.products} showInlineAds />
-    ));
+    return uniqueSections.map((section) => {
+      if (section.section_type === 'category') {
+        const category = categories.find((c) => c.id === section.reference_id);
+        if (!category || category.products.length === 0) return null;
+
+        return (
+          <CategorySection
+            key={`${section.id}-category`}
+            categoryId={category.id}
+            categoryName={category.name}
+            products={category.products}
+            showInlineAds={false}
+          />
+        );
+      }
+
+      if (section.section_type === 'ad-3-grid' || section.section_type === 'ad-2-grid') {
+        if (!section.reference_id) return null;
+
+        return (
+          <SectionAds
+            key={`${section.id}-ads`}
+            categoryId={section.reference_id}
+            adType={section.section_type}
+          />
+        );
+      }
+
+      return null;
+    });
   };
 
   return (
